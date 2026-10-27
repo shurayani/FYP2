@@ -13,6 +13,8 @@ from utils import ui
 from utils.i18n import t
 
 auth.init()                                    # create DB, seed 7 categories + admin on first launch
+from src import debug_info  # noqa: E402  (TEMPORARY)
+debug_info.log("after auth.init")
 
 
 @st.cache_resource(show_spinner="Loading saved accounts and transactions...")

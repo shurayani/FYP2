@@ -46,6 +46,8 @@ def register(username, email, password, confirm):
 
 def login(username, password):
     """Returns (user_dict | None, message)."""
+    from src import debug_info  # TEMPORARY
+    debug_info.log("login " + str(username))
     user = db.get_user_by_username(username or "")
     if not user or not verify_password(password or "", user["password"]):
         return None, "Invalid username or password."
