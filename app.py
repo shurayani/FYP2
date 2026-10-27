@@ -353,10 +353,8 @@ else:
     else:
         pages += [st.Page("views/2_Receipts.py", title=t("Receipts")),
                   st.Page("views/3_Transactions.py", title=t("Transactions")),
-                  st.Page("views/11_Price_Check.py", title=t("Price Check")),
                   st.Page("views/4_Categories.py", title=t("Categories")),
                   st.Page("views/5_Budget_Goals.py", title=t("Budget Goals")),
-                  st.Page("views/12_Recurring_Bills.py", title=t("Recurring Bills")),
                   st.Page("views/6_Reports.py", title=t("Reports")),
                   st.Page("views/7_Anomaly_Alerts.py", title=t("Anomaly Alerts")),
                   st.Page("views/8_Forecast.py", title=t("Forecast")),

@@ -392,3 +392,6 @@ MS.update({
     "Change amount": "Ubah jumlah", "This month's amount": "Jumlah bulan ini",
     "Use this amount from now on": "Guna jumlah ini mulai sekarang", "Add with this amount": "Tambah dengan jumlah ini",
 })
+
+
+MS.update({"Recurring bills": "Bil berulang", "Price check": "Semak harga"})
