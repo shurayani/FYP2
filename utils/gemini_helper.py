@@ -27,6 +27,15 @@ def is_configured() -> bool:
     return bool(GEMINI_API_KEY)
 
 
+def _google_message(r) -> str:
+    """Google's own error explanation from a failed response (never contains the API key)."""
+    try:
+        msg = r.json().get("error", {}).get("message", "")
+    except ValueError:
+        msg = ""
+    return " ".join(str(msg).split())[:220]
+
+
 def _call(parts, json_mode=False, timeout=None):
     if not GEMINI_API_KEY:
         raise NetworkError("GEMINI_API_KEY is not set")
@@ -37,12 +46,20 @@ def _call(parts, json_mode=False, timeout=None):
         r = requests.post(ENDPOINT.format(model=GEMINI_MODEL), json=body,
                           headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
                           timeout=timeout or GEMINI_TIMEOUT)
-    except (requests.ConnectionError, requests.Timeout) as e:
-        raise NetworkError(str(e))
-    if r.status_code in (429, 403):
-        raise QuotaError(f"HTTP {r.status_code}")
-    if r.status_code != 200:
-        raise NetworkError(f"HTTP {r.status_code}")
+    except requests.Timeout:
+        raise NetworkError(f"took longer than {timeout or GEMINI_TIMEOUT:g} s")
+    except requests.ConnectionError:
+        raise NetworkError("could not connect to the Gemini server")
+    if r.status_code == 200:
+        pass
+    elif r.status_code == 429:
+        raise QuotaError("quota used up or too many requests (HTTP 429) - " + _google_message(r))
+    elif r.status_code in (400, 401, 403):
+        raise QuotaError(f"API key or permission problem (HTTP {r.status_code}) - " + _google_message(r))
+    elif r.status_code == 404:
+        raise NetworkError(f"model '{GEMINI_MODEL}' was not found (HTTP 404) - check GEMINI_MODEL. " + _google_message(r))
+    else:
+        raise NetworkError(f"HTTP {r.status_code} - " + _google_message(r))
     try:
         return r.json()["candidates"][0]["content"]["parts"][0]["text"]
     except (KeyError, IndexError, ValueError):

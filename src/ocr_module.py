@@ -189,15 +189,16 @@ def extract_receipt(image_bytes: bytes, prefer_offline: bool = False, categories
                               preprocessor.validate_items(data.get("items"), categories or []), categories))
             return fields
         except (NetworkError, QuotaError, ParseError) as e:     # -> fall back to PaddleOCR
-            note = f"Gemini unavailable ({e}); switched to PaddleOCR."
+            note = f"Gemini ({gemini_helper.GEMINI_MODEL}) could not be used: {str(e).rstrip(' .-')}. Switched to PaddleOCR."
     elif not prefer_offline and not gemini_helper.is_configured():
-        note = "No Gemini API key configured; using PaddleOCR."
+        note = "No Gemini API key configured (GEMINI_API_KEY). Using PaddleOCR."
     elif not prefer_offline:
-        note = "Offline; using PaddleOCR."
+        note = "No internet connection was detected. Using PaddleOCR."
 
     if not paddle_available():
-        raise RuntimeError("PaddleOCR is not installed, and Gemini is not available. "
-                           "Install paddleocr/paddlepaddle (see README) or enter the transaction manually.")
+        reason = note.replace(" Switched to PaddleOCR.", "").replace(" Using PaddleOCR.", "")
+        raise RuntimeError(f"{reason} PaddleOCR (offline OCR) is not installed on this computer/server, so the "
+                           "receipt could not be read. Please use the Manual Data Form, or try again later.")
     processed = preprocess(img)
     text, rows_text = paddle_ocr_rows(processed)
     fields = preprocessor.parse_fields(text)
