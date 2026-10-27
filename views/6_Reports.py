@@ -53,11 +53,11 @@ for r in reports:
         if data["daily"]:
             st.plotly_chart(px.line(pd.DataFrame(data["daily"]), x="date", y="total", markers=True,
                                     labels={"total": "RM", "date": t("Date")}), width="stretch", key=f"daily_{r['id']}")
-        st.markdown(f"**{t('Month-on-month trend')}**")
+        st.subheader(t('Month-on-month trend'), anchor=False)
         st.plotly_chart(px.line(pd.DataFrame(data["trend_months"]), x="month", y="total", markers=True,
                                 labels={"total": "RM", "month": t("Month")}), width="stretch", key=f"trend_{r['id']}")
         if data["top_merchants"]:
-            st.markdown(f"**{t('Top merchants')}**")
+            st.subheader(t('Top merchants'), anchor=False)
             st.dataframe(pd.DataFrame(data["top_merchants"]), width="stretch", hide_index=True)
         for line in data["trends"]:
             st.write("• " + line)

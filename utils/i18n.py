@@ -297,3 +297,17 @@ MS.update({
     "Installation was cancelled. You can press the button again.":
         "Pemasangan dibatalkan. Anda boleh tekan butang sekali lagi.",
 })
+
+
+MS.update({
+    "Here is where your money went in {m}.": "Ini ke mana wang anda pergi pada {m}.",
+    "Scan a receipt": "Imbas resit",
+    "All transactions": "Semua transaksi",
+    "Spending so far this month": "Perbelanjaan setakat ini bulan ini",
+    "No spending recorded yet this month.": "Belum ada perbelanjaan direkodkan bulan ini.",
+    "Most frequent category: {c}": "Kategori paling kerap: {c}",
+    "Other categories": "Kategori lain",
+    "Budget used this month": "Belanjawan digunakan bulan ini",
+    "Snap a receipt and IPECS sorts your spending into categories, tracks your budgets and warns you about unusual expenses.":
+        "Imbas resit dan IPECS menyusun perbelanjaan anda mengikut kategori, menjejak belanjawan dan memberi amaran tentang perbelanjaan luar biasa.",
+})

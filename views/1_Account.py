@@ -9,8 +9,9 @@ user = st.session_state.get("user")
 
 # ------------------------------------------------------------------ not logged in: login / register
 if not user:
-    st.title("IPECS")
-    st.caption(t("Intelligent Personal Expense Categorization System"))
+    st.markdown("<style>[data-testid='stMainBlockContainer'], .block-container { max-width: 560px; }</style>",
+                unsafe_allow_html=True)                       # narrow, centred login column
+    st.markdown(ui.brand_header(), unsafe_allow_html=True)
     pwa.install_box()                     # 'Install IPECS app' (patch #13)
     tab_login, tab_reg, tab_admin = st.tabs([t("User Login"), t("Register"), t("Admin Login")])
     with tab_login:

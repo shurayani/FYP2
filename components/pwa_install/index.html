@@ -4,19 +4,19 @@
 <meta charset="utf-8">
 <style>
   html, body { margin: 0; padding: 0; background: transparent; }
-  body { font-family: "Source Sans Pro", "Source Sans 3", -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
-  #card { display: none; box-sizing: border-box; padding: 12px 14px; border: 1px solid #cfe2f5; border-radius: 12px;
-          background: #f4f9fe; color: #1f3b57; }
+  body { font-family: "Figtree", "Source Sans Pro", "Source Sans 3", -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  #card { display: none; box-sizing: border-box; padding: 12px 14px; border: 1px solid #D3DCDA; border-radius: 12px;
+          background: #FFFFFF; color: #16253D; }
   body.dark #card { background: #1b2734; border-color: #2c4a66; color: #e6eef6; }
   #head { display: flex; align-items: center; gap: 12px; }
   #icon { width: 40px; height: 40px; border-radius: 10px; flex: none; }
   #title { font-weight: 650; font-size: 15px; line-height: 1.3; }
   #text { font-size: 13px; line-height: 1.4; opacity: .85; }
-  #btn { display: none; margin-top: 10px; width: 100%; height: 42px; border: 0; border-radius: 8px; background: #2E74B5;
+  #btn { display: none; margin-top: 10px; width: 100%; height: 42px; border: 0; border-radius: 8px; background: #0F7B6C;
          color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
   #btn:disabled { opacity: .6; cursor: default; }
   #steps { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.5;
-           background: #e6f1fc; }
+           background: #EAF4F2; }
   body.dark #steps { background: #22374b; }
 </style>
 </head>
@@ -59,7 +59,7 @@
   function setupPage() {                // listener first, then the manifest (the prompt fires after the manifest is read)
     var st = state();
     if (!D) return;
-    addHead("meta", {id: "ipecs-theme", name: "theme-color", content: "#2E74B5"});
+    addHead("meta", {id: "ipecs-theme", name: "theme-color", content: "#0F7B6C"});
     addHead("meta", {id: "ipecs-mobile-capable", name: "mobile-web-app-capable", content: "yes"});
     addHead("meta", {id: "ipecs-apple-capable", name: "apple-mobile-web-app-capable", content: "yes"});
     addHead("meta", {id: "ipecs-apple-title", name: "apple-mobile-web-app-title", content: "IPECS"});

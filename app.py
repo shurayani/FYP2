@@ -46,56 +46,94 @@ BASE_CSS = """
 <style>
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
-h1 { font-size: 1.85rem !important; font-weight: 700 !important; letter-spacing: -0.3px; }
-h2, h3 { font-weight: 650 !important; }
+h1 { letter-spacing: -0.02em; }
+h2, h3 { letter-spacing: -0.01em; }
 
-/* sidebar: profile card + light-blue page boxes */
-[data-testid="stSidebar"] { border-right: 1px solid #cfe2f5; background: #f4f9fe; }
-.profile-card { display:flex; align-items:center; gap:12px; padding:0.8rem 0.9rem; margin-bottom:0.5rem;
-    background:#ffffff; border:1px solid #cfe2f5; border-radius:12px; }
-.profile-avatar { width:42px; height:42px; border-radius:50%; background:#2E74B5; color:#ffffff;
-    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.1rem; }
-.profile-name { font-weight:650; line-height:1.2; color:#1f3b57; }
-.profile-role { font-size:0.75rem; color:#5b7690; text-transform:uppercase; letter-spacing:.6px; }
-[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {
-    border: 1px solid #cfe2f5; border-radius: 8px; padding: 0.5rem 0.85rem; margin-bottom: 4px;
-    background: #e6f1fc; transition: all .15s ease;
-}
-[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] p { color:#1f4e79; font-weight:500; }
-[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover { background:#d3e6f9; border-color:#2E74B5; }
-[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] { background:#2E74B5; border-color:#2E74B5; }
-[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] p { color:#ffffff; font-weight:600; }
-
-.nav-active { box-sizing:border-box; height:45px; display:flex; align-items:center; border:1px solid #2E74B5;
-    border-radius:8px; padding:0 0.85rem; margin-bottom:12px; background:#2E74B5; color:#ffffff !important;
-    font-weight:600; font-size:0.875rem; }
-
-/* profile card = one clickable block that opens the Account page */
-.st-key-profilebox { position: relative; }
+/* ---------- sidebar (its colours come from [theme.sidebar] in .streamlit/config.toml) */
+.side-brand { display:flex; align-items:center; gap:10px; margin:0 0 1rem 2px; }
+.side-brand svg { flex:none; }
+.side-brand span { font-family:"Bricolage Grotesque", sans-serif; font-weight:800; font-size:1.25rem;
+    color:#F4F7F6; letter-spacing:-0.01em; }
+.profile-card { display:flex; align-items:center; gap:12px; padding:0.7rem 0.8rem; margin-bottom:0.25rem;
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:12px;
+    transition:background .15s ease, border-color .15s ease; }
+.profile-avatar { width:38px; height:38px; border-radius:50%; background:#3FB8A4; color:#16253D; flex:none;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1rem;
+    font-family:"Bricolage Grotesque", sans-serif; }
+.profile-name { font-weight:650; line-height:1.2; color:#F4F7F6; }
+.profile-role { font-size:0.78rem; color:#9FB2C4; }
+.profile-role::first-letter { text-transform:uppercase; }
+.st-key-profilebox { position:relative; }
 .st-key-profilebox [data-testid="stElementContainer"]:has([data-testid="stPageLink"]) { position:absolute; inset:0; z-index:5; }
 .st-key-profilebox [data-testid="stPageLink-NavLink"] { opacity:0; height:100%; width:100%; }
-.profile-card { transition: all .15s ease; }
-.st-key-profilebox:hover .profile-card { border-color:#2E74B5; background:#f3f8fd; }
-.profile-card.profile-active { background:#e6f1fc; border:2px solid #2E74B5; }
+.st-key-profilebox:hover .profile-card { background:rgba(255,255,255,0.1); border-color:rgba(63,184,164,0.6); }
+.profile-card.profile-active { background:rgba(63,184,164,0.14); border-color:#3FB8A4; }
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] { border:0; border-radius:8px; padding:0.45rem 0.75rem;
+    margin-bottom:2px; background:transparent; }
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] p { color:#C9D5DF; font-weight:500; }
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover { background:rgba(255,255,255,0.07); }
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover p { color:#FFFFFF; }
+.nav-active { box-sizing:border-box; display:flex; align-items:center; min-height:38px; border-radius:8px;
+    padding:0 0.75rem; margin:2px 0 6px; background:#0F7B6C; color:#FFFFFF !important; font-weight:600;
+    font-size:0.875rem; box-shadow:inset 3px 0 0 #3FB8A4; }
+[data-testid="stSidebar"] hr { border-color:rgba(255,255,255,0.1); margin:0.8rem 0; }
 
-/* metric cards */
-[data-testid="stMetric"] {
-    background: #ffffff; border: 1px solid #dfe3ea; border-radius: 10px; padding: 0.8rem 1rem;
-}
-[data-testid="stMetricLabel"] p { font-size: 0.8rem !important; color: #6b7280; }
-[data-testid="stMetricValue"] { font-size: 1.35rem !important; }
+/* ---------- metrics and forms */
+[data-testid="stMetric"] { background:#FFFFFF; border:1px solid #D3DCDA; border-radius:12px; padding:0.85rem 1rem; }
+[data-testid="stMetricLabel"] p { font-size:0.82rem !important; color:#5B6B7F; }
+[data-testid="stMetricValue"] { font-family:"Bricolage Grotesque", sans-serif; font-size:1.45rem !important;
+    font-weight:700; color:#16253D; }
 [data-testid="stMetricValue"] p, [data-testid="stMetricLabel"] p,
 [data-testid="stMetricLabel"] [data-testid="stMarkdownContainer"] {
-    white-space: normal !important; overflow: visible !important; text-overflow: clip !important;
-    overflow-wrap: anywhere; line-height: 1.25; }
-/* the dashboard KPI cards drop to a second row when the window is narrow */
-.st-key-kpis [data-testid="stHorizontalBlock"] { display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem 1rem; }
-.st-key-kpis [data-testid="stColumn"] { width: auto !important; min-width: 0 !important; flex: unset !important; }
+    white-space:normal !important; overflow:visible !important; text-overflow:clip !important;
+    overflow-wrap:anywhere; line-height:1.25; }
+.st-key-glance [data-testid="stHorizontalBlock"] { display:grid !important;
+    grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:0.75rem; }
+.st-key-glance [data-testid="stColumn"] { width:auto !important; min-width:0 !important; flex:unset !important; }
+[data-testid="stForm"] { background:#FFFFFF; border:1px solid #D3DCDA; border-radius:14px; padding:1.1rem 1.2rem; }
+.stButton > button, .stDownloadButton > button, [data-testid^="stBaseButton"] { font-weight:600; }
 
-/* buttons and inputs */
-.stButton > button, .stDownloadButton > button, [data-testid^="stBaseButton"] { border-radius: 8px; font-weight: 600; }
-[data-testid="stForm"] { border: 1px solid #dfe3ea; border-radius: 10px; }
+/* ---------- dashboard quick actions */
+.st-key-quick_actions [data-testid="stPageLink-NavLink"] { background:#FFFFFF; border:1px solid #D3DCDA;
+    border-radius:10px; padding:0.45rem 0.9rem; }
+.st-key-quick_actions [data-testid="stPageLink-NavLink"]:hover { border-color:#0F7B6C; }
+.st-key-qa_scan [data-testid="stPageLink-NavLink"] { background:#0F7B6C; border-color:#0F7B6C; }
+.st-key-qa_scan [data-testid="stPageLink-NavLink"]:hover { background:#0C6559; }
+.st-key-qa_scan [data-testid="stPageLink-NavLink"] p, .st-key-qa_scan [data-testid="stPageLink-NavLink"] span { color:#FFFFFF !important; }
+
+/* ---------- this month's receipt (dashboard) */
+.slip-wrap { filter:drop-shadow(0 1px 0 #D3DCDA) drop-shadow(0 10px 16px rgba(22,37,61,0.08)); margin-bottom:1rem; }
+.slip { --z:9px; background:#FFFFFF; padding:1.25rem 1.4rem calc(1.25rem + var(--z)); color:#16253D;
+    font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:0.9rem;
+    -webkit-mask:conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--z)) 100%;
+            mask:conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--z)) 100%; }
+.slip-head { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; font-weight:600; }
+.slip-brand { font-family:"Bricolage Grotesque", sans-serif; font-weight:800; font-size:1.15rem; }
+.slip-sub { color:#5B6B7F; font-size:0.8rem; margin-top:2px; }
+.slip-rule { border-top:1.5px dashed #AEBBC0; margin:0.8rem 0; }
+.slip-line { display:flex; align-items:baseline; gap:6px; padding:3px 0; }
+.slip-item { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:62%; }
+.slip-dots { flex:1; min-width:12px; border-bottom:1.5px dotted #C5CFD2; transform:translateY(-4px); }
+.slip-amt { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.slip-total { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; font-weight:700; }
+.slip-total span:last-child { font-family:"Bricolage Grotesque", sans-serif; font-size:2.1rem; line-height:1.1;
+    letter-spacing:-0.02em; color:#0F7B6C; }
+.slip-foot { margin-top:0.6rem; font-size:0.8rem; color:#5B6B7F; }
+.slip-empty { color:#5B6B7F; padding:0.3rem 0; }
+.meter { background:#FFFFFF; border:1px solid #D3DCDA; border-radius:12px; padding:0.85rem 1rem; margin-bottom:0.75rem; }
+.meter-top { display:flex; justify-content:space-between; align-items:baseline; font-size:0.82rem; color:#5B6B7F; }
+.meter-top b { font-family:"Bricolage Grotesque", sans-serif; font-size:1.45rem; color:#16253D; }
+.meter-track { height:10px; background:#E3E9E7; border-radius:99px; margin-top:0.5rem; overflow:hidden; }
+.meter-fill { height:100%; border-radius:99px; }
+.meter-note { font-size:0.82rem; color:#5B6B7F; margin-top:0.3rem; }
+
+/* ---------- login page */
+.brand { display:flex; align-items:center; gap:14px; margin:0.5rem 0 0.6rem; }
+.brand svg { flex:none; }
+.brand-name { font-family:"Bricolage Grotesque", sans-serif; font-weight:800; font-size:2.5rem; line-height:1;
+    letter-spacing:-0.03em; color:#16253D; }
+.brand-tag { color:#5B6B7F; font-size:0.9rem; margin-top:4px; }
+.brand-pitch { font-size:1.02rem; line-height:1.55; color:#2A3A52; max-width:34rem; margin:0.4rem 0 1rem; }
 </style>
 """
 
@@ -115,8 +153,8 @@ if st.session_state.get("dark_mode"):
 # ----------------------------------------------------------------------------- dashboard page
 def dashboard():
     user = ui.require_login()
-    st.title(f"IPECS — {t('Dashboard')}")
     if user["role"] == "admin":
+        st.title(t("Dashboard"))
         st.info(t("You are logged in as the administrator. Use the Admin Panel to manage users and system data."))
         c1, c2, c3, c4 = st.columns(4)
         c1.metric(t("Total users"), len([u for u in db.list_users() if u["role"] == "user"]))
@@ -127,13 +165,11 @@ def dashboard():
         return
 
     uid = user["id"]
-    st.subheader(t("Hello, {name}!", name=user["username"]))
-    ui.budget_banner(uid)
     month = analytics.month_str(date.today())
     summary = analytics.monthly_summary(uid, month)
     total = float(summary["total"].sum()) if not summary.empty else 0.0
     all_tx = db.get_transactions(uid)
-    top_cat = "—"
+    top_cat = None
     if not summary.empty:                       # most frequent = highest number of transactions
         top_cat = ui.cat_label(summary.sort_values("count", ascending=False).iloc[0]["category_name"])
     bva = analytics.budget_vs_actual(uid, month)
@@ -143,14 +179,35 @@ def dashboard():
     forecasts = db.get_forecasts(uid, next_month)
     fc_total = sum(f["forecast_amount"] for f in forecasts) if forecasts else None
 
-    with st.container(key="kpis"):
-        k = st.columns(6)
-        k[0].metric(t("Spent this month"), ui.money(total))
-        k[1].metric(t("Transactions recorded"), len(all_tx))
-        k[2].metric(t("Most frequent category"), top_cat)
-        k[3].metric(t("Budget used"), f"{pct:.0f}%" if pct is not None else "—")
-        k[4].metric(t("Unresolved alerts"), len(active_alerts))
-        k[5].metric(t("Forecast next month"), ui.money(fc_total) if fc_total is not None else "—")
+    head_l, head_r = st.columns([3, 2], vertical_alignment="bottom")
+    with head_l:
+        st.title(t("Hello, {name}!", name=user["username"]), anchor=False)
+        st.caption(t("Here is where your money went in {m}.", m=ui.month_label(month)))
+    with head_r:
+        with st.container(key="quick_actions", horizontal=True, horizontal_alignment="right"):
+            with st.container(key="qa_scan"):
+                st.page_link("views/2_Receipts.py", label=t("Scan a receipt"), icon=":material/photo_camera:")
+            with st.container(key="qa_all"):
+                st.page_link("views/3_Transactions.py", label=t("All transactions"), icon=":material/receipt_long:")
+    ui.budget_banner(uid)
+
+    slip_col, glance_col = st.columns([5, 4], gap="large")
+    with slip_col:
+        lines = []
+        if not summary.empty:
+            by_total = summary.sort_values("total", ascending=False)
+            lines = [(ui.cat_label(r["category_name"]), float(r["total"])) for _, r in by_total.head(5).iterrows()]
+            rest = float(by_total["total"].iloc[5:].sum())
+            if rest > 0:
+                lines.append((t("Other categories"), rest))
+        st.markdown(ui.receipt_slip(ui.month_label(month), lines, total, top_cat), unsafe_allow_html=True)
+    with glance_col:
+        st.markdown(ui.budget_meter(pct), unsafe_allow_html=True)
+        with st.container(key="glance"):
+            g = st.columns(3)
+            g[0].metric(t("Unresolved alerts"), len(active_alerts))
+            g[1].metric(t("Transactions recorded"), len(all_tx))
+            g[2].metric(t("Forecast next month"), ui.money(fc_total) if fc_total is not None else "—")
 
     if not all_tx:
         st.info(t("No transactions yet. Upload a receipt or add a transaction manually to get started."))
@@ -158,12 +215,12 @@ def dashboard():
 
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown(f"**{t('Monthly spending trend')}**")
+        st.subheader(f"{t('Monthly spending trend')}", anchor=False)
         trend = analytics.monthly_totals(uid, 6)
         fig = px.line(trend, x="month", y="total", markers=True, labels={"month": t("Month"), "total": "RM"})
         st.plotly_chart(fig, width="stretch")
     with c2:
-        st.markdown(f"**{t('Category breakdown')} ({month})**")
+        st.subheader(f"{t('Category breakdown')} ({month})", anchor=False)
         if summary.empty:
             st.caption(t("No spending recorded this month."))
         else:
@@ -171,7 +228,7 @@ def dashboard():
             s2["category_name"] = s2["category_name"].map(ui.cat_label)
             st.plotly_chart(px.pie(s2, names="category_name", values="total", hole=0.35), width="stretch")
 
-    st.markdown(f"**{t('Budget progress')}**")
+    st.subheader(f"{t('Budget progress')}", anchor=False)
     if bva.empty:
         st.caption(t("No budget goals set for this month."))
         st.page_link("views/5_Budget_Goals.py", label=t("Set a budget goal"))
@@ -184,28 +241,28 @@ def dashboard():
 
     a1, a2 = st.columns(2)
     with a1:
-        st.markdown(f"**{t('Anomaly alerts')}**")
+        st.subheader(f"{t('Anomaly alerts')}", anchor=False)
         if not active_alerts:
             st.caption(t("No active anomaly alerts."))
         for a in active_alerts[:3]:
             st.warning(f"{a['merchant']} — {ui.money(a['amount'])} ({ui.cat_label(a['category_name'])}), Z = {a['z_score']:.2f}")
         st.page_link("views/7_Anomaly_Alerts.py", label=t("View all alerts"))
     with a2:
-        st.markdown(f"**{t('Forecast preview')} ({next_month})**")
+        st.subheader(f"{t('Forecast preview')} ({next_month})", anchor=False)
         if not forecasts:
             st.caption(t("No forecast yet. Open the Forecast page and press Recalculate."))
         for f in forecasts[:4]:
             st.write(f"{ui.cat_label(f['category_name'])}: **{ui.money(f['forecast_amount'])}**")
         st.page_link("views/8_Forecast.py", label=t("Open forecasts"))
 
-    st.markdown(f"**{t('Recent transactions')}**")
+    st.subheader(f"{t('Recent transactions')}", anchor=False)
     if all_tx:
         recent = pd.DataFrame(all_tx[:8])[["date", "merchant", "category_name", "amount"]]
         recent["category_name"] = recent["category_name"].map(ui.cat_label)
         recent.columns = [t("Date"), t("Merchant"), t("Category"), "RM"]
         st.dataframe(recent, width="stretch", hide_index=True)
 
-    st.markdown(f"**{t('Financial insights')}**")
+    st.subheader(f"{t('Financial insights')}", anchor=False)
     for tip in analytics.insight_tips(uid):
         st.write("• " + tip)
 
@@ -243,6 +300,7 @@ def nav_item(page, label=None):
 
 
 with st.sidebar:
+    st.markdown(ui.sidebar_brand(), unsafe_allow_html=True)
     if user:
         initial = user["username"][:1].upper()
         on_account = (nav.title == account_page.title)

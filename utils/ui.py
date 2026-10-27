@@ -137,3 +137,76 @@ def budget_banner(user_id):
         st.error(t("Over budget this month: {items}", items=lines(over)))
     if not near.empty:
         st.warning(t("Close to the budget limit (75% or more): {items}", items=lines(near)))
+
+
+
+# ---------------------------------------------------------------- look & feel (patch #20)
+from html import escape as _esc
+
+CHART_COLORS = ["#0F7B6C", "#2F6DB5", "#D9861C", "#6B46A3", "#C2412D", "#4E9A3A", "#8A94A6"]
+try:                                                    # same banknote colours in every Plotly chart
+    import plotly.express as _px
+    _px.defaults.color_discrete_sequence = CHART_COLORS
+except Exception:
+    pass
+
+_MONTHS_MS = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober",
+              "November", "Disember"]
+
+
+def month_label(month: str) -> str:
+    """'2026-10' -> 'October 2026' (or 'Oktober 2026' in BM)."""
+    try:
+        y, m = month.split("-")
+        m = int(m)
+    except (ValueError, AttributeError):
+        return str(month)
+    name = _MONTHS_MS[m - 1] if st.session_state.get("lang") == "ms" else date(2000, m, 1).strftime("%B")
+    return f"{name} {y}"
+
+
+def mark_svg(bg="#16253D", size=48) -> str:
+    """The IPECS mark: a receipt with a torn edge."""
+    return (f"<svg width='{size}' height='{size}' viewBox='0 0 48 48' xmlns='http://www.w3.org/2000/svg' "
+            f"aria-hidden='true'><rect width='48' height='48' rx='12' fill='{bg}'/>"
+            "<path d='M15 10h18v27l-3-2.5-3 2.5-3-2.5-3 2.5-3-2.5-3 2.5z' fill='#FFFFFF'/>"
+            "<path d='M19 16.5h10M19 21h7M19 25.5h10' stroke='#3FB8A4' stroke-width='2.2' "
+            "stroke-linecap='round'/></svg>")
+
+
+def sidebar_brand() -> str:
+    return f"<div class='side-brand'>{mark_svg('#0F7B6C', 30)}<span>IPECS</span></div>"
+
+
+def brand_header() -> str:
+    return ("<div class='brand'>" + mark_svg() +
+            "<div><div class='brand-name'>IPECS</div>"
+            f"<div class='brand-tag'>{_esc(t('Intelligent Personal Expense Categorization System'))}</div></div></div>"
+            f"<p class='brand-pitch'>{_esc(t('Snap a receipt and IPECS sorts your spending into categories, tracks your budgets and warns you about unusual expenses.'))}</p>")
+
+
+def receipt_slip(month_text, lines, total, top_category=None) -> str:
+    """This month's spending printed like a receipt. lines = [(category label, amount)]."""
+    rows = "".join(f"<div class='slip-line'><span class='slip-item'>{_esc(name)}</span><span class='slip-dots'></span>"
+                   f"<span class='slip-amt'>{money(amount)}</span></div>" for name, amount in lines)
+    if not rows:
+        rows = f"<div class='slip-empty'>{_esc(t('No spending recorded yet this month.'))}</div>"
+    foot = (f"<div class='slip-foot'>{_esc(t('Most frequent category: {c}', c=top_category))}</div>"
+            if top_category else "")
+    return ("<div class='slip-wrap'><div class='slip'>"
+            f"<div class='slip-head'><span class='slip-brand'>IPECS</span><span>{_esc(month_text)}</span></div>"
+            f"<div class='slip-sub'>{_esc(t('Spending so far this month'))}</div><div class='slip-rule'></div>"
+            f"{rows}<div class='slip-rule'></div>"
+            f"<div class='slip-total'><span>{_esc(t('Total'))}</span><span>{money(total)}</span></div>{foot}"
+            "</div></div>")
+
+
+def budget_meter(pct) -> str:
+    """Budget used this month as a bar: teal, orange from 75 %, red from 100 %."""
+    if pct is None:
+        return (f"<div class='meter'><div class='meter-top'><span>{_esc(t('Budget used this month'))}</span>"
+                f"<b>—</b></div><div class='meter-note'>{_esc(t('No budget goals set for this month.'))}</div></div>")
+    colour = "#C2412D" if pct >= 100 else "#D9861C" if pct >= 75 else "#0F7B6C"
+    return (f"<div class='meter'><div class='meter-top'><span>{_esc(t('Budget used this month'))}</span>"
+            f"<b>{pct:.0f}%</b></div><div class='meter-track'>"
+            f"<div class='meter-fill' style='width:{max(0, min(100, pct)):.0f}%;background:{colour}'></div></div></div>")

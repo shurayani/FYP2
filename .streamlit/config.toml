@@ -1,2 +1,32 @@
+# IPECS theme (patch #20) - colours from Malaysian banknotes
 [theme]
 base = "light"
+primaryColor = "#0F7B6C"
+backgroundColor = "#EDF1F0"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#16253D"
+linkColor = "#0F7B6C"
+borderColor = "#D3DCDA"
+showWidgetBorder = true
+baseRadius = "0.6rem"
+buttonRadius = "0.6rem"
+font = "Figtree:https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap"
+headingFont = "Bricolage Grotesque:https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&display=swap"
+codeFont = "IBM Plex Mono:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap"
+headingFontSizes = ["2.1rem", "1.45rem", "1.12rem"]
+headingFontWeights = [800, 700, 700]
+redColor = "#C2412D"
+orangeColor = "#D9861C"
+greenColor = "#2E8B57"
+blueColor = "#2F6DB5"
+violetColor = "#6B46A3"
+dataframeHeaderBackgroundColor = "#F3F6F5"
+chartCategoricalColors = ["#0F7B6C", "#2F6DB5", "#D9861C", "#6B46A3", "#C2412D", "#4E9A3A", "#8A94A6"]
+
+[theme.sidebar]
+backgroundColor = "#16253D"
+secondaryBackgroundColor = "#22344F"
+textColor = "#E6EDF2"
+borderColor = "#2C4060"
+primaryColor = "#3FB8A4"
+linkColor = "#3FB8A4"
