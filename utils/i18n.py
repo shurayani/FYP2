@@ -278,3 +278,22 @@ MS.update({
     "Over budget this month: {items}": "Melebihi belanjawan bulan ini: {items}",
     "Close to the budget limit (75% or more): {items}": "Hampir mencapai had belanjawan (75% atau lebih): {items}",
 })
+
+
+MS.update({
+    "Use IPECS like an app": "Guna IPECS seperti aplikasi",
+    "Install it on your phone: it opens full-screen, with its own icon on the home screen.":
+        "Pasang pada telefon anda: ia dibuka skrin penuh, dengan ikon sendiri di skrin utama.",
+    "Install IPECS app": "Pasang aplikasi IPECS",
+    "Installing...": "Sedang memasang...",
+    "IPECS is installed": "IPECS telah dipasang",
+    "Open it from your home screen.": "Buka dari skrin utama anda.",
+    "In Safari, tap the Share button (the square with an arrow), then choose 'Add to Home Screen' and tap 'Add'.":
+        "Dalam Safari, ketik butang Kongsi (petak dengan anak panah), kemudian pilih 'Tambah ke Skrin Utama' dan ketik 'Tambah'.",
+    "Open the browser menu (the three dots) and choose 'Install app' or 'Add to Home screen'.":
+        "Buka menu pelayar (tiga titik) dan pilih 'Pasang aplikasi' atau 'Tambah ke skrin Utama'.",
+    "This link is not secure (http://), so the phone can only add a shortcut: open the browser menu (the three dots) and choose 'Add to Home screen'. For the full app, open the https:// link shown by start_phone.py --tunnel.":
+        "Pautan ini tidak selamat (http://), jadi telefon hanya boleh menambah pintasan: buka menu pelayar (tiga titik) dan pilih 'Tambah ke skrin Utama'. Untuk aplikasi penuh, buka pautan https:// yang dipaparkan oleh start_phone.py --tunnel.",
+    "Installation was cancelled. You can press the button again.":
+        "Pemasangan dibatalkan. Anda boleh tekan butang sekali lagi.",
+})

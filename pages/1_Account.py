@@ -2,7 +2,7 @@
 import streamlit as st
 
 from src import auth, db_manager as db
-from utils import ui
+from utils import pwa, ui
 from utils.i18n import t
 
 user = st.session_state.get("user")
@@ -11,6 +11,7 @@ user = st.session_state.get("user")
 if not user:
     st.title("IPECS")
     st.caption(t("Intelligent Personal Expense Categorization System"))
+    pwa.install_box()                     # 'Install IPECS app' (patch #13)
     tab_login, tab_reg, tab_admin = st.tabs([t("User Login"), t("Register"), t("Admin Login")])
     with tab_login:
         with st.form("login_form"):

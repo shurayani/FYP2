@@ -35,3 +35,14 @@ Optional demo data: `python scripts/seed_demo_data.py` → login **demo / demo12
 | Dashboard / Admin | `app.py`, `pages/9_Admin_Panel.py` | – |
 
 Tests: `python -m pytest -q tests` · Retrain classifier: `python training/train_model.py`.
+
+## Use IPECS on your phone (patch #13)
+IPECS keeps running on your computer; the phone opens it in the browser and can install it as an app.
+* **Same Wi-Fi:** `python start_phone.py` -> open the printed `http://192.168.x.x:8501` link on the phone.
+  Phones only allow a *shortcut* from an `http://` link (browser menu -> Add to Home screen).
+* **Install as an app (any network):** install the free [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
+  (Windows: `winget install --id Cloudflare.cloudflared`, macOS: `brew install cloudflared`), then run
+  `python start_phone.py --tunnel` and open the printed `https://....trycloudflare.com` link on the phone.
+  Press **Install IPECS app** on the login page (iPhone: Share -> Add to Home Screen).
+* Keep the computer on and `start_phone.py` running while you use the phone. A quick-tunnel link changes each
+  time it starts; anyone with the link can reach the login page, so change `ADMIN_PASSWORD` in `.env` first.
