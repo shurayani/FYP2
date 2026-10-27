@@ -21,7 +21,7 @@ _paddle = None
 
 # ---------------------------------------------------------------- connectivity
 def is_online(timeout: float = 2.0) -> bool:
-    for host, port in (("1.1.1.1", 53), ("8.8.8.8", 53)):
+    for host, port in (("1.1.1.1", 53), ("8.8.8.8", 53), ("generativelanguage.googleapis.com", 443)):
         try:
             socket.create_connection((host, port), timeout=timeout).close()
             return True

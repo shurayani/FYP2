@@ -8,11 +8,42 @@ import streamlit as st
 
 st.set_page_config(page_title="IPECS", page_icon="💸", layout="wide")
 
-from src import analytics, auth, db_manager as db, forecast as fc
+from src import analytics, auth, cloud_mode, db_manager as db, forecast as fc
 from utils import ui
 from utils.i18n import t
 
 auth.init()                                    # create DB, seed 7 categories + admin on first launch
+
+
+@st.cache_resource(show_spinner="Loading saved accounts and transactions...")
+def _restore_from_supabase_once():
+    """Cloud only (IPECS_CLOUD = "1"): the cloud disk was wiped by a restart -> bring everything back from Supabase."""
+    if cloud_mode.ready() and cloud_mode.local_user_count() == 0:
+        return cloud_mode.restore_all()
+    return None
+
+
+@st.cache_resource(show_spinner="Preparing the demo account (first start only, about a minute)...")
+def _seed_demo_once():
+    """Optional (IPECS_DEMO = "1"): create demo / demo123 with sample data once per server start."""
+    if db.get_user_by_username("demo"):
+        return True
+    import subprocess
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parent
+    done = subprocess.run([sys.executable, str(root / "scripts" / "seed_demo_data.py")], cwd=str(root),
+                          capture_output=True, text=True)
+    return done.returncode == 0
+
+
+import os                                      # noqa: E402
+_restored = _restore_from_supabase_once()
+if _restored and _restored.get("error"):
+    _restore_from_supabase_once.clear()        # Supabase was unreachable: try again on the next page load
+    st.warning("Saved data could not be loaded from Supabase yet: " + _restored["error"])
+if os.getenv("IPECS_DEMO") == "1":
+    _seed_demo_once()
 
 # language comes from the BM toggle (ON = Bahasa Malaysia, OFF = English)
 st.session_state["lang"] = "ms" if st.session_state.get("lang_bm", False) else "en"
@@ -238,6 +269,7 @@ with st.sidebar:
         st.markdown((":green[●] " + t("Online")) if online else (":red[●] " + t("Offline")))
         if user["role"] != "admin":
             ui.run_auto_sync(user["id"])
+            cloud_mode.push_now(user["id"])          # cloud: save changes to Supabase immediately
             sc = db.sync_counts(user["id"])
             st.caption(t("Sync: {p} pending · {c} conflict(s)", p=sc["pending"], c=sc["conflict"]))
     st.toggle("Dark mode", key="dark_mode")
@@ -249,3 +281,5 @@ with st.sidebar:
         st.rerun()
 
 nav.run()
+if user and user["role"] != "admin":
+    cloud_mode.push_now(user["id"])
