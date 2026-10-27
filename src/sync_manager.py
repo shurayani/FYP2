@@ -128,6 +128,11 @@ def sync_now(user_id) -> dict:
     try:
         push_pending(user_id, result)
         pull_remote(user_id, result)
+        try:                                                   # receipt images (patch #16)
+            from src import image_store
+            result["images"] = image_store.sync_images()
+        except Exception:
+            pass
         result["ok"] = True
         result["at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         result["message"] = (f"Sync complete: {result['pushed']} pushed, {result['pulled']} pulled, "

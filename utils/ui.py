@@ -20,7 +20,7 @@ def require_login(admin_only: bool = False):
     user = current_user()
     if not user:
         st.warning(t("Please log in to continue."))
-        st.page_link("pages/1_Account.py", label=t("Go to login"))
+        st.page_link("views/1_Account.py", label=t("Go to login"))
         st.stop()
     if admin_only and user.get("role") != "admin":
         st.error(t("Access denied. This page is only available to the administrator."))

@@ -13,16 +13,6 @@ from utils import ui
 from utils.i18n import t
 
 auth.init()                                    # create DB, seed 7 categories + admin on first launch
-from src import debug_info  # noqa: E402  (TEMPORARY)
-debug_info.log("after auth.init")
-
-
-@st.cache_resource(show_spinner="Loading saved accounts and transactions...")
-def _restore_from_supabase_once():
-    """Cloud only (IPECS_CLOUD = "1"): the cloud disk was wiped by a restart -> bring everything back from Supabase."""
-    if cloud_mode.ready() and cloud_mode.local_user_count() == 0:
-        return cloud_mode.restore_all()
-    return None
 
 
 @st.cache_resource(show_spinner="Preparing the demo account (first start only, about a minute)...")
@@ -40,10 +30,11 @@ def _seed_demo_once():
 
 
 import os                                      # noqa: E402
-_restored = _restore_from_supabase_once()
-if _restored and _restored.get("error"):
-    _restore_from_supabase_once.clear()        # Supabase was unreachable: try again on the next page load
-    st.warning("Saved data could not be loaded from Supabase yet: " + _restored["error"])
+if cloud_mode.ready() and cloud_mode.local_user_count() == 0:       # cloud database empty -> pull it back
+    with st.spinner("Loading saved accounts and transactions..."):
+        _restored = cloud_mode.restore_if_empty()
+    if _restored and _restored.get("error"):
+        st.warning("Saved data could not be loaded from Supabase yet: " + _restored["error"])
 if os.getenv("IPECS_DEMO") == "1":
     _seed_demo_once()
 
@@ -132,7 +123,7 @@ def dashboard():
         c2.metric(t("Total transactions"), db.count_transactions_all())
         c3.metric(t("Receipts uploaded"), db.count_receipts_all())
         c4.metric(t("Active anomaly alerts"), db.count_active_alerts_all())
-        st.page_link("pages/9_Admin_Panel.py", label=t("Open Admin Panel"))
+        st.page_link("views/9_Admin_Panel.py", label=t("Open Admin Panel"))
         return
 
     uid = user["id"]
@@ -163,7 +154,7 @@ def dashboard():
 
     if not all_tx:
         st.info(t("No transactions yet. Upload a receipt or add a transaction manually to get started."))
-        st.page_link("pages/2_Receipts.py", label=t("Add your first transaction"))
+        st.page_link("views/2_Receipts.py", label=t("Add your first transaction"))
 
     c1, c2 = st.columns(2)
     with c1:
@@ -183,7 +174,7 @@ def dashboard():
     st.markdown(f"**{t('Budget progress')}**")
     if bva.empty:
         st.caption(t("No budget goals set for this month."))
-        st.page_link("pages/5_Budget_Goals.py", label=t("Set a budget goal"))
+        st.page_link("views/5_Budget_Goals.py", label=t("Set a budget goal"))
     else:
         b = bva.copy()
         b["category_name"] = b["category_name"].map(ui.cat_label)
@@ -198,14 +189,14 @@ def dashboard():
             st.caption(t("No active anomaly alerts."))
         for a in active_alerts[:3]:
             st.warning(f"{a['merchant']} — {ui.money(a['amount'])} ({ui.cat_label(a['category_name'])}), Z = {a['z_score']:.2f}")
-        st.page_link("pages/7_Anomaly_Alerts.py", label=t("View all alerts"))
+        st.page_link("views/7_Anomaly_Alerts.py", label=t("View all alerts"))
     with a2:
         st.markdown(f"**{t('Forecast preview')} ({next_month})**")
         if not forecasts:
             st.caption(t("No forecast yet. Open the Forecast page and press Recalculate."))
         for f in forecasts[:4]:
             st.write(f"{ui.cat_label(f['category_name'])}: **{ui.money(f['forecast_amount'])}**")
-        st.page_link("pages/8_Forecast.py", label=t("Open forecasts"))
+        st.page_link("views/8_Forecast.py", label=t("Open forecasts"))
 
     st.markdown(f"**{t('Recent transactions')}**")
     if all_tx:
@@ -221,22 +212,22 @@ def dashboard():
 
 # ----------------------------------------------------------------------------- navigation
 user = st.session_state.get("user")
-account_page = st.Page("pages/1_Account.py", title=t("Account"))
+account_page = st.Page("views/1_Account.py", title=t("Account"))
 if not user:
-    pages = [st.Page("pages/1_Account.py", title=t("Login / Register"))]
+    pages = [st.Page("views/1_Account.py", title=t("Login / Register"))]
 else:
     pages = [st.Page(dashboard, title=t("Dashboard"), url_path="dashboard", default=True), account_page]
     if user["role"] == "admin":
-        pages.append(st.Page("pages/9_Admin_Panel.py", title=t("Admin Panel")))
+        pages.append(st.Page("views/9_Admin_Panel.py", title=t("Admin Panel")))
     else:
-        pages += [st.Page("pages/2_Receipts.py", title=t("Receipts")),
-                  st.Page("pages/3_Transactions.py", title=t("Transactions")),
-                  st.Page("pages/4_Categories.py", title=t("Categories")),
-                  st.Page("pages/5_Budget_Goals.py", title=t("Budget Goals")),
-                  st.Page("pages/6_Reports.py", title=t("Reports")),
-                  st.Page("pages/7_Anomaly_Alerts.py", title=t("Anomaly Alerts")),
-                  st.Page("pages/8_Forecast.py", title=t("Forecast")),
-                  st.Page("pages/10_Sync_Status.py", title=t("Sync Status"))]
+        pages += [st.Page("views/2_Receipts.py", title=t("Receipts")),
+                  st.Page("views/3_Transactions.py", title=t("Transactions")),
+                  st.Page("views/4_Categories.py", title=t("Categories")),
+                  st.Page("views/5_Budget_Goals.py", title=t("Budget Goals")),
+                  st.Page("views/6_Reports.py", title=t("Reports")),
+                  st.Page("views/7_Anomaly_Alerts.py", title=t("Anomaly Alerts")),
+                  st.Page("views/8_Forecast.py", title=t("Forecast")),
+                  st.Page("views/10_Sync_Status.py", title=t("Sync Status"))]
 nav = st.navigation(pages, position="hidden")      # our own sidebar menu is drawn below
 if user and st.session_state.pop("_goto_dashboard", False):
     st.switch_page(pages[0])

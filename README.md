@@ -23,16 +23,16 @@ Optional demo data: `python scripts/seed_demo_data.py` → login **demo / demo12
 ## Report → code map
 | Module | Page | Backend |
 |---|---|---|
-| 1 User Account | `pages/1_Account.py` | `src/auth.py` |
-| 2 Receipt | `pages/2_Receipts.py` | `src/receipt_manager.py`, `src/ocr_module.py`, `utils/gemini_helper.py` |
-| 3 Transaction | `pages/3_Transactions.py` | `src/db_manager.py`, `src/preprocessor.py`, `src/classifier.py` |
-| 4 Category | `pages/4_Categories.py` | `src/db_manager.py` |
-| 5 Budget Goal | `pages/5_Budget_Goals.py` | `src/analytics.py` |
-| 6 Spending Report | `pages/6_Reports.py` | `src/analytics.py` |
-| 7 Anomaly Alert | `pages/7_Anomaly_Alerts.py` | `src/analytics.py` (|Z| > 2.0) |
-| 8 Spending Forecast | `pages/8_Forecast.py` | `src/forecast.py` (Prophet + Gemini insights) |
-| 9 Sync | `pages/10_Sync_Status.py` | `src/sync_manager.py` (last-write-wins) |
-| Dashboard / Admin | `app.py`, `pages/9_Admin_Panel.py` | – |
+| 1 User Account | `views/1_Account.py` | `src/auth.py` |
+| 2 Receipt | `views/2_Receipts.py` | `src/receipt_manager.py`, `src/ocr_module.py`, `utils/gemini_helper.py` |
+| 3 Transaction | `views/3_Transactions.py` | `src/db_manager.py`, `src/preprocessor.py`, `src/classifier.py` |
+| 4 Category | `views/4_Categories.py` | `src/db_manager.py` |
+| 5 Budget Goal | `views/5_Budget_Goals.py` | `src/analytics.py` |
+| 6 Spending Report | `views/6_Reports.py` | `src/analytics.py` |
+| 7 Anomaly Alert | `views/7_Anomaly_Alerts.py` | `src/analytics.py` (|Z| > 2.0) |
+| 8 Spending Forecast | `views/8_Forecast.py` | `src/forecast.py` (Prophet + Gemini insights) |
+| 9 Sync | `views/10_Sync_Status.py` | `src/sync_manager.py` (last-write-wins) |
+| Dashboard / Admin | `app.py`, `views/9_Admin_Panel.py` | – |
 
 Tests: `python -m pytest -q tests` · Retrain classifier: `python training/train_model.py`.
 

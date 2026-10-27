@@ -163,6 +163,7 @@ def get_conn():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     try:
+        _ensure_schema(conn)
         yield conn
         conn.commit()
     except Exception:
@@ -182,23 +183,41 @@ def _row(cur):
 
 
 # --------------------------------------------------------------------------- init
+_hash_fn = None                                # remembered so a wiped database can be rebuilt with the admin
+
+
+def _create_schema(c, hash_password=None):
+    """Tables + seven system categories + admin account (all idempotent)."""
+    c.executescript(SCHEMA)
+    n = c.execute("SELECT COUNT(*) FROM categories").fetchone()[0]
+    if n == 0:
+        ts = now()
+        for name in SYSTEM_CATEGORIES:
+            c.execute("INSERT INTO categories (id, category_name, is_system, user_id, updated_at, is_deleted)"
+                      " VALUES (?,?,1,NULL,?,0)", (category_uuid(name), name, ts))
+    if hash_password is not None:
+        exists = c.execute("SELECT 1 FROM users WHERE id=?", (ADMIN_ID,)).fetchone()
+        if not exists:
+            ts = now()
+            c.execute("INSERT INTO users (id, username, email, password, role, is_active, created_at, updated_at)"
+                      " VALUES (?,?,?,?,?,1,?,?)",
+                      (ADMIN_ID, ADMIN_USERNAME, ADMIN_EMAIL, hash_password(ADMIN_PASSWORD), "admin", ts, ts))
+    c.commit()
+
+
+def _ensure_schema(c):
+    """Safety net: if the database file was emptied or replaced, rebuild it instead of crashing."""
+    if not c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='users'").fetchone():
+        _create_schema(c, _hash_fn)
+
+
 def init_db(hash_password=None):
     """Create all tables on first launch, seed the seven system categories and the admin account."""
+    global _hash_fn
+    if hash_password is not None:
+        _hash_fn = hash_password
     with get_conn() as c:
-        c.executescript(SCHEMA)
-        n = c.execute("SELECT COUNT(*) FROM categories").fetchone()[0]
-        if n == 0:
-            ts = now()
-            for name in SYSTEM_CATEGORIES:
-                c.execute("INSERT INTO categories (id, category_name, is_system, user_id, updated_at, is_deleted)"
-                          " VALUES (?,?,1,NULL,?,0)", (category_uuid(name), name, ts))
-        if hash_password is not None:
-            exists = c.execute("SELECT 1 FROM users WHERE id=?", (ADMIN_ID,)).fetchone()
-            if not exists:
-                ts = now()
-                c.execute("INSERT INTO users (id, username, email, password, role, is_active, created_at, updated_at)"
-                          " VALUES (?,?,?,?,?,1,?,?)",
-                          (ADMIN_ID, ADMIN_USERNAME, ADMIN_EMAIL, hash_password(ADMIN_PASSWORD), "admin", ts, ts))
+        _create_schema(c, hash_password)
 
 
 # --------------------------------------------------------------------------- sync log

@@ -6,3 +6,4 @@ data/ipecs.db
 data/*.pkl
 receipts/*
 !receipts/.gitkeep
+data/*.txt
