@@ -24,7 +24,7 @@ for _d in (DATA_DIR, RECEIPT_DIR):
 # --- External services (all optional: the app works fully offline without them)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
-GEMINI_TIMEOUT = float(os.getenv("GEMINI_TIMEOUT", "8"))   # seconds before falling back (NFR13)
+GEMINI_TIMEOUT = float(os.getenv("GEMINI_TIMEOUT", "20"))   # seconds before falling back (NFR13)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "").strip()
@@ -40,3 +40,10 @@ MIN_SAMPLES_FOR_ZSCORE = 5         # need a few transactions in a category for a
 MIN_MONTHS_FOR_FORECAST = 3        # Prophet needs some history per category
 MAX_UPLOAD_MB = 10                 # receipts: JPEG/PNG up to 10 MB
 MIN_F1_THRESHOLD = 0.80            # NFR02
+MIN_WEEKS_FOR_FORECAST = 3          # short-history mode: weekly Prophet when < 3 months of data
+LOW_CONFIDENCE_THRESHOLD = 0.40     # below this the user is asked to double-check the category
+                                    # (re-tune after retraining: Naive Bayes probabilities depend on the dataset)
+ITEM_DATASET_PATH = TRAINING_DIR / "receipt_items_dataset.csv"
+ITEM_MODEL_PATH = DATA_DIR / "item_model.pkl"
+ITEM_VECTORIZER_PATH = DATA_DIR / "item_vectorizer.pkl"
+ITEM_MIN_CONF = 0.40                # below this the item model stays silent

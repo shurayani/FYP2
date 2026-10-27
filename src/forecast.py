@@ -1,6 +1,8 @@
 """Spending forecast (Module 8, FR11, Section 5.6.8).
 
 Primary layer : Prophet, fully offline - next-month forecast per category with confidence interval.
+    A category needs at least MIN_MONTHS_FOR_FORECAST COMPLETE months of history (the current month is not
+    complete, so it is not used). Only the last MAX_HISTORY_MONTHS months are used.
 Secondary layer: optional Gemini insights (utils/gemini_helper) when online; skipped silently otherwise."""
 import logging
 from datetime import date
@@ -10,6 +12,8 @@ import pandas as pd
 from src import analytics, db_manager as db
 from utils import gemini_helper
 from utils.config import MIN_MONTHS_FOR_FORECAST
+
+MAX_HISTORY_MONTHS = 12
 
 logging.getLogger("cmdstanpy").setLevel(logging.WARNING)
 logging.getLogger("prophet").setLevel(logging.WARNING)
@@ -21,7 +25,9 @@ def target_month() -> str:
 
 
 def _category_monthly(df: pd.DataFrame, category_id: str, last_complete: str) -> pd.DataFrame:
-    d = df[(df["category_id"] == category_id) & (df["date"].dt.strftime("%Y-%m") <= last_complete)].copy()
+    first_allowed = analytics.add_months(last_complete, -(MAX_HISTORY_MONTHS - 1))
+    month = df["date"].dt.strftime("%Y-%m")
+    d = df[(df["category_id"] == category_id) & (month <= last_complete) & (month >= first_allowed)].copy()
     if d.empty:
         return pd.DataFrame(columns=["ds", "y"])
     d["m"] = d["date"].dt.to_period("M")
@@ -45,20 +51,19 @@ def prophet_forecast(series: pd.DataFrame, periods: int):
 
 def generate_forecasts(user_id) -> dict:
     """(Re)calculate next-month forecasts for every category with enough history and save them.
-    Returns {"saved": n, "skipped": [category names]}."""
+    Returns {"saved": n, "skipped": [category names], "target": month}."""
     df = analytics.transactions_df(user_id)
     target = target_month()
     saved, skipped = 0, []
     if df.empty:
         return {"saved": 0, "skipped": [], "target": target}
     last_complete = analytics.add_months(analytics.month_str(date.today()), -1)
-    periods = 2          # last complete month -> current month -> target month
     for _, cat in df[["category_id", "category_name"]].drop_duplicates().iterrows():
         series = _category_monthly(df, cat["category_id"], last_complete)
         if len(series) < MIN_MONTHS_FOR_FORECAST or series["y"].sum() <= 0:
             skipped.append(cat["category_name"])
             continue
-        yhat, lo, hi = prophet_forecast(series, periods)
+        yhat, lo, hi = prophet_forecast(series, 2)       # last complete month -> this month -> target month
         db.save_forecast(user_id, cat["category_id"], target, yhat, lo, hi)
         saved += 1
     return {"saved": saved, "skipped": skipped, "target": target}

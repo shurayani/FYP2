@@ -49,11 +49,24 @@ def _call(parts, json_mode=False, timeout=None):
         raise ParseError("Unexpected Gemini response")
 
 
-def extract_receipt_fields(jpeg_bytes: bytes) -> dict:
-    """Send the (resized, compressed) receipt image and get merchant / date / total back as JSON."""
+def extract_receipt_fields(jpeg_bytes: bytes, categories=None) -> dict:
+    """Send the (resized, compressed) receipt image; get merchant / date / total AND the purchased items,
+    each with a category chosen from `categories`, back as JSON."""
+    cats = ", ".join(f'"{c}"' for c in (categories or []))
     prompt = ("You are reading a Malaysian retail receipt. Return ONLY a JSON object with keys: "
-              '"merchant" (store name, string), "date" (YYYY-MM-DD), "amount" (grand total paid in MYR, number). '
-              "Use null for anything you cannot read.")
+              '"merchant" (store name, string), "date_text" (the receipt date exactly as printed, string), '
+              '"date" (YYYY-MM-DD; Malaysian receipts print DD/MM/YYYY, so 04/10/2026 is 4 October 2026), '
+              '"amount" (the FINAL amount actually paid in MYR, after any discount or voucher, number), '
+              '"items" (array of purchased line items, each {"name": string, "amount": number (line total in MYR), '
+              '"category": string}). '
+              + (f"Choose each item's category from exactly this list: [{cats}]. " if cats else "")
+              + "Choose the category by what the ITEM is, not by the type of shop (e.g. bread bought at a petrol "
+                "station is food/groceries, not transport). If nothing fits perfectly use the closest category, but if an "
+                "item name is only a code, number or abbreviation you cannot understand, set its category to null "
+                "instead of guessing. "
+                "Do not list tax, rounding, discounts, vouchers, promo codes, delivery fee, platform fee, service charge, "
+                "payment lines or totals as items. "
+                "Use null (or an empty items array) for anything you cannot read.")
     parts = [{"text": prompt},
              {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(jpeg_bytes).decode()}}]
     text = _call(parts, json_mode=True)

@@ -30,7 +30,7 @@ with tab_users:
             "ID": [u["id"][:8] for u in shown], t("Username"): [u["username"] for u in shown],
             t("Email"): [u["email"] for u in shown],
             t("Status"): [t("Active") if u["is_active"] else t("Deactivated") for u in shown],
-            t("Registered"): [u["created_at"][:10] for u in shown],
+            t("Registered"): [ui.local_time(u["created_at"], False) for u in shown],
             t("Transactions"): [u["tx_count"] for u in shown]}), width="stretch", hide_index=True)
         opts = {f"{u['username']} ({u['email']})": u for u in shown}
         pick = opts[st.selectbox(t("Select a user"), list(opts.keys()))]

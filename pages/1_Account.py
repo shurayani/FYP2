@@ -11,7 +11,7 @@ user = st.session_state.get("user")
 if not user:
     st.title("IPECS")
     st.caption(t("Intelligent Personal Expense Categorization System"))
-    tab_login, tab_reg = st.tabs([t("Login"), t("Register")])
+    tab_login, tab_reg, tab_admin = st.tabs([t("User Login"), t("Register"), t("Admin Login")])
     with tab_login:
         with st.form("login_form"):
             u = st.text_input(t("Username"))
@@ -19,10 +19,30 @@ if not user:
             ok = st.form_submit_button(t("Log in"), type="primary")
         if ok:
             res, msg = auth.login(u, p)
-            if res:
+            if res and res["role"] == "admin":
+                st.error(t("This is an administrator account. Please use the Admin Login tab."))
+            elif res:
                 st.session_state["user"] = res
                 st.session_state["_auto_synced"] = False
+                st.session_state["_goto_dashboard"] = True
                 st.rerun()
+            else:
+                st.error(t(msg))
+    with tab_admin:
+        st.caption(t("Administrator access only."))
+        with st.form("admin_login_form"):
+            au = st.text_input(t("Username"), key="adm_user")
+            ap = st.text_input(t("Password"), type="password", key="adm_pw")
+            aok = st.form_submit_button(t("Log in as administrator"), type="primary")
+        if aok:
+            res, msg = auth.login(au, ap)
+            if res and res["role"] == "admin":
+                st.session_state["user"] = res
+                st.session_state["_auto_synced"] = False
+                st.session_state["_goto_dashboard"] = True
+                st.rerun()
+            elif res:
+                st.error(t("This account is not an administrator."))
             else:
                 st.error(t(msg))
     with tab_reg:
@@ -55,7 +75,7 @@ with tab_profile:
             st.rerun()
         else:
             st.error(t(msg))
-    st.caption(f"{t('Role')}: {fresh['role']} · {t('Member since')}: {fresh['created_at'][:10]}")
+    st.caption(f"{t('Role')}: {fresh['role']} · {t('Member since')}: {ui.local_time(fresh['created_at'], False)}")
 
 with tab_pw:
     if user["role"] == "admin":

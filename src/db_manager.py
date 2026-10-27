@@ -20,7 +20,7 @@ SYSTEM_CATEGORIES = ["Food and Beverage", "Groceries", "Transport", "Utilities",
 ADMIN_ID = "00000000-0000-0000-0000-000000000001"
 
 # Tables that take part in synchronisation, in foreign-key order.
-SYNC_TABLES = ["users", "categories", "receipts", "transactions",
+SYNC_TABLES = ["users", "categories", "receipts", "transactions", "transaction_items",
                "budgets", "reports", "anomaly_alerts", "forecasts"]
 
 SCHEMA = """
@@ -111,6 +111,19 @@ CREATE TABLE IF NOT EXISTS forecasts (
     updated_at TEXT NOT NULL,
     is_deleted INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS transaction_items (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    transaction_id TEXT NOT NULL REFERENCES transactions(id),
+    receipt_id TEXT REFERENCES receipts(id),
+    item_name TEXT NOT NULL,
+    amount REAL NOT NULL,
+    category_id TEXT NOT NULL REFERENCES categories(id),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_items_tx ON transaction_items(transaction_id);
 CREATE TABLE IF NOT EXISTS sync_log (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id),
@@ -333,6 +346,8 @@ def delete_category(category_id, owner_id, reassign_to=None):
             for t in _rows(c.execute("SELECT id, user_id FROM transactions WHERE category_id=? AND is_deleted=0",
                                      (category_id,))):
                 _update(c, "transactions", t["id"], {"category_id": reassign_to}, t["user_id"])
+                for it in _rows(c.execute("SELECT id FROM transaction_items WHERE transaction_id=? AND is_deleted=0", (t["id"],))):
+                    _update(c, "transaction_items", it["id"], {"category_id": reassign_to}, t["user_id"])
         for table in ("budgets", "forecasts"):
             for r in _rows(c.execute(f"SELECT id, user_id FROM {table} WHERE category_id=? AND is_deleted=0",
                                      (category_id,))):
@@ -374,9 +389,10 @@ def add_receipt(user_id, file_path, original_filename, ocr_raw_text, ocr_engine)
 def get_receipts(user_id):
     with get_conn() as c:
         return _rows(c.execute("""
-            SELECT r.*, t.id AS transaction_id, t.merchant AS tx_merchant, t.amount AS tx_amount, t.date AS tx_date
+            SELECT r.*, COUNT(t.id) AS tx_count, COALESCE(SUM(t.amount), 0) AS tx_amount,
+                   MIN(t.merchant) AS tx_merchant
             FROM receipts r LEFT JOIN transactions t ON t.receipt_id=r.id AND t.is_deleted=0
-            WHERE r.user_id=? AND r.is_deleted=0 ORDER BY r.upload_date DESC""", (user_id,)))
+            WHERE r.user_id=? AND r.is_deleted=0 GROUP BY r.id ORDER BY r.upload_date DESC""", (user_id,)))
 
 
 def get_receipt(receipt_id):
@@ -405,7 +421,9 @@ def count_receipts_all():
 
 
 # --------------------------------------------------------------------------- TRANSACTIONS (Module 3)
-_TX_SELECT = """SELECT t.*, c.category_name, u.username FROM transactions t
+_TX_SELECT = """SELECT t.*, c.category_name, u.username,
+                (SELECT COUNT(*) FROM transaction_items i WHERE i.transaction_id=t.id AND i.is_deleted=0) AS item_count
+                FROM transactions t
                 JOIN categories c ON c.id=t.category_id JOIN users u ON u.id=t.user_id"""
 
 
@@ -454,12 +472,17 @@ def update_transaction(tx_id, user_id, **fields):
         allowed["date"] = str(allowed["date"])
     with get_conn() as c:
         _update(c, "transactions", tx_id, allowed, user_id)
+        if "category_id" in allowed:
+            for it in _rows(c.execute("SELECT id FROM transaction_items WHERE transaction_id=? AND is_deleted=0", (tx_id,))):
+                _update(c, "transaction_items", it["id"], {"category_id": allowed["category_id"]}, user_id)
 
 
 def delete_transaction(tx_id, user_id):
     with get_conn() as c:
         for a in _rows(c.execute("SELECT id FROM anomaly_alerts WHERE transaction_id=? AND is_deleted=0", (tx_id,))):
             _update(c, "anomaly_alerts", a["id"], {"is_deleted": 1}, user_id, "delete")
+        for it in _rows(c.execute("SELECT id FROM transaction_items WHERE transaction_id=? AND is_deleted=0", (tx_id,))):
+            _update(c, "transaction_items", it["id"], {"is_deleted": 1}, user_id, "delete")
         _update(c, "transactions", tx_id, {"is_deleted": 1}, user_id, "delete")
 
 
@@ -688,3 +711,25 @@ def mark_sync_entry(user_id, table, record_id, status, remote_updated_at=None, r
             c.execute("UPDATE sync_log SET sync_status=?, remote_updated_at=?, resolved_value=?, synced_at=?,"
                       " local_updated_at=COALESCE(?, local_updated_at) WHERE id=?",
                       (status, remote_updated_at, rv, ts, local_updated_at, row["id"]))
+
+
+# --------------------------------------------------------------------------- TRANSACTION ITEMS (item-level records)
+def add_item(user_id, transaction_id, receipt_id, name, amount, category_id):
+    iid, ts = new_id(), now()
+    with get_conn() as c:
+        _insert(c, "transaction_items", dict(id=iid, user_id=user_id, transaction_id=transaction_id,
+                                             receipt_id=receipt_id, item_name=name.strip()[:80], amount=float(amount),
+                                             category_id=category_id, created_at=ts, updated_at=ts, is_deleted=0), user_id)
+    return iid
+
+
+def get_items(user_id, transaction_id=None):
+    q = ("SELECT i.*, c.category_name FROM transaction_items i JOIN categories c ON c.id=i.category_id"
+         " WHERE i.is_deleted=0 AND i.user_id=?")
+    args = [user_id]
+    if transaction_id:
+        q += " AND i.transaction_id=?"
+        args.append(transaction_id)
+    q += " ORDER BY i.created_at"
+    with get_conn() as c:
+        return _rows(c.execute(q, args))

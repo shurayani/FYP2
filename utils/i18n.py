@@ -179,3 +179,102 @@ def lang() -> str:
 def t(text: str, **kw) -> str:
     out = MS.get(text, text) if lang() == "ms" else text
     return out.format(**kw) if kw else out
+
+
+MS.update({
+    "Next-month forecasts per category are computed offline with Prophet. Needs {m} months of history, or {w} weeks for a lower-accuracy short-history estimate.":
+        "Ramalan bulan depan bagi setiap kategori dikira secara luar talian dengan Prophet. Perlukan {m} bulan sejarah, atau {w} minggu untuk anggaran sejarah pendek yang kurang tepat.",
+    "Not enough history to forecast yet. Record transactions across at least {w} weeks.":
+        "Sejarah belum mencukupi untuk meramal. Rekod transaksi merentasi sekurang-kurangnya {w} minggu.",
+})
+
+
+MS.update({
+    "Low confidence: the suggested category may be wrong (it is based on the merchant name only). Please check it.":
+        "Keyakinan rendah: kategori yang dicadangkan mungkin salah (ia berdasarkan nama kedai sahaja). Sila semak.",
+    "Low confidence: please check the category in the Transactions page.":
+        "Keyakinan rendah: sila semak kategori di halaman Transaksi.",
+})
+
+
+MS.update({
+    "Split across several categories": "Pecahkan kepada beberapa kategori",
+    "Set the total first, then edit the rows. Add a row by clicking the empty row at the bottom of the table.":
+        "Tetapkan jumlah dahulu, kemudian edit baris. Tambah baris dengan mengklik baris kosong di bawah jadual.",
+    "Allocated {a} of {tot}.": "Diperuntukkan {a} daripada {tot}.",
+    "Allocated {a} of {tot}. Remaining: {r}": "Diperuntukkan {a} daripada {tot}. Baki: {r}",
+    "The split amounts must add up exactly to the total.": "Jumlah pecahan mesti sama tepat dengan jumlah keseluruhan.",
+    "{n} transactions saved.": "{n} transaksi disimpan.",
+    "Linked transactions": "Transaksi berkaitan",
+})
+
+
+MS.update({
+    "Gemini read the items on this receipt and suggests the categories below. Please review them.":
+        "Gemini membaca barang pada resit ini dan mencadangkan kategori di bawah. Sila semak.",
+    "Items read from the receipt": "Barang yang dibaca dari resit",
+    "Item": "Barang",
+    "Category suggested from the receipt items.": "Kategori dicadangkan daripada barang pada resit.",
+    "The suggested split was adjusted for tax, rounding or discounts.":
+        "Pecahan yang dicadangkan dilaraskan untuk cukai, pembundaran atau diskaun.",
+})
+
+
+MS.update({
+    "Gemini read the items on this receipt. Each item has its own category - please review them.":
+        "Gemini membaca barang pada resit ini. Setiap barang ada kategori sendiri - sila semak.",
+    "Ignore the items and save as a single transaction": "Abaikan barang dan simpan sebagai satu transaksi",
+    "Add at least one item.": "Tambah sekurang-kurangnya satu barang.",
+    "Item": "Barang",
+    "Transactions that will be saved": "Transaksi yang akan disimpan",
+    "The items differ from the receipt total by {d} (tax, rounding or discount). It is added to {c}.":
+        "Barang berbeza daripada jumlah resit sebanyak {d} (cukai, pembundaran atau diskaun). Ia ditambah kepada {c}.",
+    "The items add up to {s} but the receipt total is {tot}. Fix the items or the total.":
+        "Jumlah barang ialah {s} tetapi jumlah resit ialah {tot}. Betulkan barang atau jumlah.",
+    "Please fix the items so they add up to the receipt total.": "Sila betulkan barang supaya sepadan dengan jumlah resit.",
+    "{n} transactions saved with {m} items.": "{n} transaksi disimpan dengan {m} barang.",
+    "Items": "Barang",
+    "Items on this transaction": "Barang dalam transaksi ini",
+})
+
+
+MS.update({
+    "Next-month forecasts per category are computed offline with Prophet from your last 12 months (at least {n} complete months per category; the current month is not counted).":
+        "Ramalan bulan depan bagi setiap kategori dikira secara luar talian dengan Prophet daripada 12 bulan terakhir anda (sekurang-kurangnya {n} bulan lengkap setiap kategori; bulan semasa tidak dikira).",
+    "{n} item(s) could not be categorised because the name is unreadable or only a code. They use the shop's category - please check them.":
+        "{n} barang tidak dapat dikategorikan kerana nama tidak dapat dibaca atau hanya kod. Ia guna kategori kedai - sila semak.",
+})
+
+
+MS.update({
+    "The items were read offline from the OCR text. This is less reliable - please check every row.":
+        "Barang dibaca secara luar talian daripada teks OCR. Ini kurang tepat - sila semak setiap baris.",
+    "Set by the model": "Ditetapkan oleh model",
+    "Model suggests {c}": "Model cadangkan {c}",
+    "Note": "Catatan",
+})
+
+
+MS.update({
+    "Rounding of {d} is spread across the categories.": "Pembundaran {d} diagihkan antara kategori.",
+    "Discount or voucher of {d} detected: the items add up to {s} but you paid {tot}. It is spread across the categories in proportion to their amounts.":
+        "Diskaun atau baucar {d} dikesan: jumlah barang {s} tetapi anda membayar {tot}. Ia diagihkan antara kategori mengikut nisbah jumlah.",
+    "Extra charges of {d} (delivery, service charge, tax) detected: the items add up to {s} but you paid {tot}. They are spread across the categories in proportion to their amounts.":
+        "Caj tambahan {d} (penghantaran, caj perkhidmatan, cukai) dikesan: jumlah barang {s} tetapi anda membayar {tot}. Ia diagihkan antara kategori mengikut nisbah jumlah.",
+    "Printed on the receipt: {d}": "Tertera pada resit: {d}",
+    "This date looks unusual ({d}). Please check it.": "Tarikh ini nampak luar biasa ({d}). Sila semak.",
+    "Item prices are shown before discounts and fees. The transaction amount is what you paid.":
+        "Harga barang dipaparkan sebelum diskaun dan caj. Jumlah transaksi ialah yang anda bayar.",
+})
+
+
+MS.update({
+    "User Login": "Log Masuk Pengguna",
+    "Admin Login": "Log Masuk Admin",
+    "Administrator access only.": "Akses pentadbir sahaja.",
+    "Log in as administrator": "Log masuk sebagai pentadbir",
+    "This is an administrator account. Please use the Admin Login tab.": "Ini akaun pentadbir. Sila guna tab Log Masuk Admin.",
+    "This account is not an administrator.": "Akaun ini bukan pentadbir.",
+    "Over budget this month: {items}": "Melebihi belanjawan bulan ini: {items}",
+    "Close to the budget limit (75% or more): {items}": "Hampir mencapai had belanjawan (75% atau lebih): {items}",
+})

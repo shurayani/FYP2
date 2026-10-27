@@ -23,7 +23,9 @@ with tab_cur:
     with st.form("budget_form", clear_on_submit=True):
         c1, c2, c3 = st.columns([3, 2, 1])
         cat = c1.selectbox(t("Category"), list(cats.keys()))
-        amt = c2.number_input(t("Monthly budget (RM)"), min_value=0.0, step=10.0, format="%.2f")
+        bud_n = st.session_state.setdefault("bud_n", 0)
+        with c2:
+            amt = ui.money_input(t("Monthly budget (RM)"), value=0.0, key=f"bud_a_{bud_n}")
         go = c3.form_submit_button(t("Save goal"), type="primary")
     if go:
         if amt <= 0:
@@ -31,6 +33,7 @@ with tab_cur:
         else:
             db.upsert_budget(uid, cats[cat], month, amt)
             st.success(t("Budget goal saved."))
+            st.session_state["bud_n"] = bud_n + 1
             st.rerun()
 
     bva = analytics.budget_vs_actual(uid, month)
@@ -50,10 +53,11 @@ with tab_cur:
                 st.markdown(ui.progress_bar(b["pct"], analytics.progress_colour(b["pct"])), unsafe_allow_html=True)
                 st.caption(f"{t('Spent')} {ui.money(b['actual'])} / {t('Budget')} {ui.money(b['budget'])} · {b['pct']:.0f}%")
                 e1, e2, e3 = st.columns([2, 1, 1])
-                new_amt = e1.number_input(t("Adjust amount"), min_value=0.01, value=float(b["budget"]), step=10.0,
-                                          key=f"ba_{b['budget_id']}", label_visibility="collapsed")
+                with e1:
+                    new_amt = ui.money_input("", value=float(b["budget"]), key=f"ba_{b['budget_id']}")
                 if e2.button(t("Update"), key=f"bu_{b['budget_id']}"):
-                    db.update_budget(b["budget_id"], uid, new_amt)
+                    if new_amt > 0:
+                        db.update_budget(b["budget_id"], uid, new_amt)
                     st.rerun()
                 if e3.button(t("Remove"), key=f"bd_{b['budget_id']}"):
                     db.delete_budget(b["budget_id"], uid)

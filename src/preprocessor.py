@@ -96,8 +96,14 @@ def validate_structured(data: dict) -> dict:
         amount = float(str(amount).replace("RM", "").replace(",", "").strip())
     except (TypeError, ValueError):
         amount = None
+    date_text = str(data.get("date_text") or "").strip()
+    printed = parse_date(date_text) if date_text else None   # day-first, as Malaysian receipts are printed
+    if printed is not None:
+        parsed_date = printed                                # trust the printed text over a mis-converted ISO date
     merchant = (data.get("merchant") or "").strip() or None
-    return finalize({"merchant": merchant, "date": parsed_date, "amount": amount})
+    out = finalize({"merchant": merchant, "date": parsed_date, "amount": amount})
+    out["date_text"] = date_text
+    return out
 
 
 def finalize(f: dict) -> dict:
@@ -108,3 +114,114 @@ def finalize(f: dict) -> dict:
         "amount": float(f["amount"]) if f.get("amount") is not None and f["amount"] >= 0 else 0.0,
         "complete": all(f.get(k) is not None and f.get(k) != "" for k in ("merchant", "date", "amount")),
     }
+
+
+def validate_items(items, allowed):
+    """Clean the item list returned by Gemini. `allowed` = category names the user may use.
+    Items whose category is not allowed keep category=None (the caller falls back to the merchant guess)."""
+    out = []
+    lookup = {a.lower(): a for a in allowed}
+    if not isinstance(items, list):
+        return out
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        try:
+            amt = float(str(it.get("amount")).replace("RM", "").replace(",", "").strip())
+        except (TypeError, ValueError):
+            continue
+        if amt <= 0:
+            continue
+        name = str(it.get("name") or "").strip()[:60]
+        cat = lookup.get(str(it.get("category") or "").strip().lower())
+        if not re.search(r"[A-Za-z]{3,}", name):      # only a code / number: any category would be a guess
+            cat = None
+        out.append({"name": name, "amount": round(amt, 2), "category": cat})
+    return out
+
+
+def suggest_split(items, total, fallback_category):
+    """Group items by category and reconcile with the receipt total.
+    Returns {"rows": [(category_name, amount), ...], "adjusted": bool} or None when not reliable
+    (no items, or the items differ from the total by more than 25 %)."""
+    if not items or not total or total <= 0:
+        return None
+    groups = {}
+    for it in items:
+        cat = it["category"] or fallback_category
+        groups[cat] = round(groups.get(cat, 0.0) + it["amount"], 2)
+    diff = round(total - round(sum(groups.values()), 2), 2)
+    adjusted = False
+    if abs(diff) > 0.005:                       # tax / rounding / discount not listed as items
+        if abs(diff) / total > 0.25:
+            return None
+        biggest = max(groups, key=groups.get)
+        groups[biggest] = round(groups[biggest] + diff, 2)
+        adjusted = True
+        if groups[biggest] <= 0:
+            return None
+    rows = sorted(groups.items(), key=lambda kv: -kv[1])
+    return {"rows": [(c, round(a, 2)) for c, a in rows], "adjusted": adjusted}
+
+
+# ---------------------------------------------------------------- offline line items (best effort)
+_ITEM_SKIP = re.compile(
+    r"(total|jumlah|cash|tunai|change|baki|balance|tax|gst|sst|service|rounding|pembundaran|discount|diskaun|"
+    r"\bdisc\b|voucher|card|debit|credit|visa|master|approval|auth|rrn|terminal|merchant|batch|receipt|invoice|"
+    r"item\(s\)|qty|quantity|\btel\b|phone|www|thank|terima kasih|points?|member|ewallet|\bqr\b|amount|\bdue\b|"
+    r"paid|bayar|nett|operator|cashier|\bedc\b|date|time|tarikh|host|trace|signature|contactless)", re.I)
+
+
+def _split_tail(line):
+    """Peel qty / 'x' / unit price / line total off the END of a line -> (name, [prices])."""
+    toks = line.split()
+    prices = []
+    while toks:
+        tok = toks[-1]
+        if re.fullmatch(r"(?:RM)?\d{1,5}\.\d{2}", tok, re.I):
+            prices.insert(0, float(re.sub(r"(?i)rm", "", tok)))
+            toks.pop()
+        elif prices and re.fullmatch(r"[xX@]|\d{1,3}[xX]?|RM", tok, re.I):
+            toks.pop()
+        else:
+            break
+    return " ".join(toks), prices
+
+
+def parse_items(text, total):
+    """Best-effort line items from OCR text. Returns [{'name','amount','category': None}] or [] when the
+    items do not add up to the receipt total (within 25 %), so a bad parse never reaches the user."""
+    if not text or not total or total <= 0:
+        return []
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    found = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        i += 1
+        if _ITEM_SKIP.search(line):
+            continue
+        name, prices = _split_tail(line)
+        letters = len(re.findall(r"[A-Za-z]", name))
+        if prices and letters >= 3:
+            found.append((name, prices[-1]))
+        elif not prices and letters >= 3 and i < len(lines) and not _ITEM_SKIP.search(lines[i]):
+            code, p2 = _split_tail(lines[i])             # name on one line, 'CODE qty x price total' on the next
+            if p2 and len(re.findall(r"[A-Za-z]", code)) < 3:
+                found.append((name, p2[-1]))
+                i += 1
+
+    def close(items):
+        s = sum(a for _, a in items)
+        return bool(items) and abs(total - s) / total <= 0.25
+
+    if len(found) > 1 and not close(found):             # drop lines that just echo the total (e.g. 'EDC RM 19.90')
+        found = [(n, a) for n, a in found if abs(a - total) > 0.005]
+    if not close(found):
+        return []
+    out = []
+    for n, a in found:
+        n = re.sub(r"^\d+\s*[xX]?\s+", "", n).strip()[:60]
+        if len(re.findall(r"[A-Za-z]", n)) >= 3 and a > 0:
+            out.append({"name": n, "amount": round(a, 2), "category": None})
+    return out if close([(x["name"], x["amount"]) for x in out]) else []

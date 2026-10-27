@@ -30,7 +30,7 @@ if not reports:
 
 for r in reports:
     data = json.loads(r["report_data"])
-    with st.expander(f"{r['report_month']} — {ui.money(data['total'])}  ·  {t('generated')} {r['generated_at'][:16].replace('T', ' ')}",
+    with st.expander(f"{r['report_month']} — {ui.money(data['total'])}  ·  {t('generated')} {ui.local_time(r['generated_at'])}",
                      expanded=(r["report_month"] == month)):
         k = st.columns(4)
         k[0].metric(t("Total spent"), ui.money(data["total"]))

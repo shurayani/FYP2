@@ -13,7 +13,7 @@ st.title(f"{t('Sync Status')}")
 s = sync_manager.status(uid)
 k = st.columns(4)
 k[0].metric(t("Connection"), ("🟢 " + t("Online")) if s["online"] else ("🔴 " + t("Offline")))
-k[1].metric(t("Last sync"), s["last_sync"][:16].replace("T", " ") if s["last_sync"] else t("Never"))
+k[1].metric(t("Last sync"), ui.local_time(s["last_sync"]) if s["last_sync"] else t("Never"))
 k[2].metric(t("Pending changes"), s["pending"])
 k[3].metric(t("Conflicts"), s["conflict_count"])
 
@@ -39,8 +39,8 @@ else:
     st.dataframe(pd.DataFrame({t("Table"): [c["table_name"] for c in s["conflicts"]],
                                t("Record"): [c["record_id"][:8] for c in s["conflicts"]],
                                t("Kept version"): [t(c["kept"]) if c["kept"] else "—" for c in s["conflicts"]],
-                               t("Local time"): [c["local_updated_at"] for c in s["conflicts"]],
-                               t("Remote time"): [c["remote_updated_at"] for c in s["conflicts"]]}),
+                               t("Local time"): [ui.local_time(c["local_updated_at"]) for c in s["conflicts"]],
+                               t("Remote time"): [ui.local_time(c["remote_updated_at"]) for c in s["conflicts"]]}),
                  width="stretch", hide_index=True)
 
 st.subheader(t("Record sync status"))
@@ -54,7 +54,7 @@ else:
                                t("Record"): [e["record_id"][:8] for e in shown],
                                t("Operation"): [e["operation"] for e in shown],
                                t("Status"): [e["sync_status"] for e in shown],
-                               t("Local change"): [e["local_updated_at"] for e in shown],
-                               t("Synced at"): [e["synced_at"] or "—" for e in shown]}),
+                               t("Local change"): [ui.local_time(e["local_updated_at"]) for e in shown],
+                               t("Synced at"): [ui.local_time(e["synced_at"]) for e in shown]}),
                  width="stretch", hide_index=True)
 st.caption(t("Sync runs automatically once when you log in (if configured and online) and whenever you press Sync Now."))

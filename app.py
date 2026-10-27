@@ -27,7 +27,7 @@ h2, h3 { font-weight: 650 !important; }
 
 /* sidebar: profile card + light-blue page boxes */
 [data-testid="stSidebar"] { border-right: 1px solid #cfe2f5; background: #f4f9fe; }
-.profile-card { display:flex; align-items:center; gap:12px; padding:0.8rem 0.9rem; margin-bottom:0.9rem;
+.profile-card { display:flex; align-items:center; gap:12px; padding:0.8rem 0.9rem; margin-bottom:0.5rem;
     background:#ffffff; border:1px solid #cfe2f5; border-radius:12px; }
 .profile-avatar { width:42px; height:42px; border-radius:50%; background:#2E74B5; color:#ffffff;
     display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.1rem; }
@@ -42,12 +42,32 @@ h2, h3 { font-weight: 650 !important; }
 [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] { background:#2E74B5; border-color:#2E74B5; }
 [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] p { color:#ffffff; font-weight:600; }
 
+.nav-active { box-sizing:border-box; height:45px; display:flex; align-items:center; border:1px solid #2E74B5;
+    border-radius:8px; padding:0 0.85rem; margin-bottom:12px; background:#2E74B5; color:#ffffff !important;
+    font-weight:600; font-size:0.875rem; }
+
+/* profile card = one clickable block that opens the Account page */
+.st-key-profilebox { position: relative; }
+.st-key-profilebox [data-testid="stElementContainer"]:has([data-testid="stPageLink"]) { position:absolute; inset:0; z-index:5; }
+.st-key-profilebox [data-testid="stPageLink-NavLink"] { opacity:0; height:100%; width:100%; }
+.profile-card { transition: all .15s ease; }
+.st-key-profilebox:hover .profile-card { border-color:#2E74B5; background:#f3f8fd; }
+.profile-card.profile-active { background:#e6f1fc; border:2px solid #2E74B5; }
+
 /* metric cards */
 [data-testid="stMetric"] {
     background: #ffffff; border: 1px solid #dfe3ea; border-radius: 10px; padding: 0.8rem 1rem;
 }
 [data-testid="stMetricLabel"] p { font-size: 0.8rem !important; color: #6b7280; }
 [data-testid="stMetricValue"] { font-size: 1.35rem !important; }
+[data-testid="stMetricValue"] p, [data-testid="stMetricLabel"] p,
+[data-testid="stMetricLabel"] [data-testid="stMarkdownContainer"] {
+    white-space: normal !important; overflow: visible !important; text-overflow: clip !important;
+    overflow-wrap: anywhere; line-height: 1.25; }
+/* the dashboard KPI cards drop to a second row when the window is narrow */
+.st-key-kpis [data-testid="stHorizontalBlock"] { display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem 1rem; }
+.st-key-kpis [data-testid="stColumn"] { width: auto !important; min-width: 0 !important; flex: unset !important; }
 
 /* buttons and inputs */
 .stButton > button, .stDownloadButton > button, [data-testid^="stBaseButton"] { border-radius: 8px; font-weight: 600; }
@@ -84,6 +104,7 @@ def dashboard():
 
     uid = user["id"]
     st.subheader(t("Hello, {name}!", name=user["username"]))
+    ui.budget_banner(uid)
     month = analytics.month_str(date.today())
     summary = analytics.monthly_summary(uid, month)
     total = float(summary["total"].sum()) if not summary.empty else 0.0
@@ -98,13 +119,14 @@ def dashboard():
     forecasts = db.get_forecasts(uid, next_month)
     fc_total = sum(f["forecast_amount"] for f in forecasts) if forecasts else None
 
-    k = st.columns(6)
-    k[0].metric(t("Spent this month"), ui.money(total))
-    k[1].metric(t("Transactions recorded"), len(all_tx))
-    k[2].metric(t("Most frequent category"), top_cat)
-    k[3].metric(t("Budget used"), f"{pct:.0f}%" if pct is not None else "—")
-    k[4].metric(t("Unresolved alerts"), len(active_alerts))
-    k[5].metric(t("Forecast next month"), ui.money(fc_total) if fc_total is not None else "—")
+    with st.container(key="kpis"):
+        k = st.columns(6)
+        k[0].metric(t("Spent this month"), ui.money(total))
+        k[1].metric(t("Transactions recorded"), len(all_tx))
+        k[2].metric(t("Most frequent category"), top_cat)
+        k[3].metric(t("Budget used"), f"{pct:.0f}%" if pct is not None else "—")
+        k[4].metric(t("Unresolved alerts"), len(active_alerts))
+        k[5].metric(t("Forecast next month"), ui.money(fc_total) if fc_total is not None else "—")
 
     if not all_tx:
         st.info(t("No transactions yet. Upload a receipt or add a transaction manually to get started."))
@@ -163,23 +185,14 @@ def dashboard():
     for tip in analytics.insight_tips(uid):
         st.write("• " + tip)
 
-    st.markdown(f"**{t('Quick navigation')}**")
-    n = st.columns(5)
-    n[0].page_link("pages/2_Receipts.py", label=t("Receipts"))
-    n[1].page_link("pages/3_Transactions.py", label=t("Transactions"))
-    n[2].page_link("pages/5_Budget_Goals.py", label=t("Budget Goals"))
-    n[3].page_link("pages/6_Reports.py", label=t("Reports"))
-    n[4].page_link("pages/8_Forecast.py", label=t("Forecast"))
-
 
 # ----------------------------------------------------------------------------- navigation
 user = st.session_state.get("user")
+account_page = st.Page("pages/1_Account.py", title=t("Account"))
 if not user:
     pages = [st.Page("pages/1_Account.py", title=t("Login / Register"))]
-    nav = st.navigation(pages, position="hidden")
 else:
-    pages = [st.Page(dashboard, title=t("Dashboard"), url_path="dashboard", default=True),
-             st.Page("pages/1_Account.py", title=t("Account"))]
+    pages = [st.Page(dashboard, title=t("Dashboard"), url_path="dashboard", default=True), account_page]
     if user["role"] == "admin":
         pages.append(st.Page("pages/9_Admin_Panel.py", title=t("Admin Panel")))
     else:
@@ -191,18 +204,35 @@ else:
                   st.Page("pages/7_Anomaly_Alerts.py", title=t("Anomaly Alerts")),
                   st.Page("pages/8_Forecast.py", title=t("Forecast")),
                   st.Page("pages/10_Sync_Status.py", title=t("Sync Status"))]
-    nav = st.navigation(pages, position="hidden")   # our own sidebar menu is drawn below
+nav = st.navigation(pages, position="hidden")      # our own sidebar menu is drawn below
+if user and st.session_state.pop("_goto_dashboard", False):
+    st.switch_page(pages[0])
 
 # ----------------------------------------------------------------------------- sidebar
+def nav_item(page, label=None):
+    """Current page = solid blue box, other pages = light-blue links."""
+    label = label or page.title
+    if page.title == nav.title:
+        st.markdown(f"<div class='nav-active'>{label}</div>", unsafe_allow_html=True)
+    else:
+        st.page_link(page, label=label)
+
+
 with st.sidebar:
     if user:
         initial = user["username"][:1].upper()
-        st.markdown(
-            f"<div class='profile-card'><div class='profile-avatar'>{initial}</div>"
-            f"<div><div class='profile-name'>{user['username']}</div>"
-            f"<div class='profile-role'>{user['role']}</div></div></div>", unsafe_allow_html=True)
+        on_account = (nav.title == account_page.title)
+        with st.container(key="profilebox"):
+            st.markdown(
+                f"<div class='profile-card{' profile-active' if on_account else ''}'>"
+                f"<div class='profile-avatar'>{initial}</div>"
+                f"<div><div class='profile-name'>{user['username']}</div>"
+                f"<div class='profile-role'>{user['role']}</div></div></div>", unsafe_allow_html=True)
+            st.page_link(account_page, label=t("Account"))
+        st.divider()
         for p_ in pages:
-            st.page_link(p_, label=p_.title)
+            if p_.title != account_page.title:
+                nav_item(p_)
         st.divider()
         online = ui.online_status()
         st.markdown((":green[●] " + t("Online")) if online else (":red[●] " + t("Offline")))

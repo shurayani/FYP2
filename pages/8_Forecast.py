@@ -5,13 +5,13 @@ import streamlit as st
 
 from src import analytics, db_manager as db, forecast as fc
 from utils import gemini_helper, ui
-from utils.config import MIN_MONTHS_FOR_FORECAST
+from utils.config import MIN_MONTHS_FOR_FORECAST, MIN_WEEKS_FOR_FORECAST
 from utils.i18n import t
 
 user = ui.require_login()
 uid = user["id"]
 st.title(f"{t('Spending Forecast Management')}")
-st.caption(t("Next-month forecasts per category are computed offline with Prophet from your monthly history (at least {n} months per category).",
+st.caption(t("Next-month forecasts per category are computed offline with Prophet from your last 12 months (at least {n} complete months per category; the current month is not counted).",
              n=MIN_MONTHS_FOR_FORECAST))
 
 if st.button(t("Recalculate forecasts"), type="primary"):

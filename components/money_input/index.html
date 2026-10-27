@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  body { font-family: "Source Sans Pro", "Source Sans 3", -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  #label { font-size: 14px; line-height: 20px; color: rgb(49, 51, 63); margin-bottom: 4px; }
+  #box { display: flex; align-items: center; box-sizing: border-box; height: 40px; padding: 0 12px;
+         background: rgb(240, 242, 246); border: 1px solid transparent; border-radius: 8px; }
+  #box.focus { border-color: rgb(255, 75, 75); }
+  #box.disabled { opacity: .5; }
+  #prefix { color: rgba(49, 51, 63, 0.6); font-size: 16px; margin-right: 8px; user-select: none; }
+  #amt { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px;
+         color: rgb(49, 51, 63); text-align: right; }
+</style>
+</head>
+<body>
+<div id="label"></div>
+<div id="box"><span id="prefix">RM</span><input id="amt" type="text" inputmode="numeric" autocomplete="off"></div>
+<script>
+  var MAX = 99999999999;                       // 999,999,999.99
+  var cents = 0, initArg = null, committed = null, timer = null;
+  var input = document.getElementById("amt"), box = document.getElementById("box"), labelEl = document.getElementById("label");
+
+  function send(type, data) { window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, data), "*"); }
+  function fmt(c) { return (c / 100).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+  function show() { input.value = fmt(cents); }
+  function caretEnd() { var n = input.value.length; try { input.setSelectionRange(n, n); } catch (e) {} }
+  function allSelected() { return input.value.length > 0 && input.selectionStart === 0 && input.selectionEnd === input.value.length; }
+  function commit() {
+    clearTimeout(timer);
+    if (committed !== cents) { committed = cents; send("streamlit:setComponentValue", {value: cents / 100, dataType: "json"}); }
+  }
+  function schedule() { clearTimeout(timer); timer = setTimeout(commit, 600); }   // value reaches Python shortly after you stop typing
+
+  // Digits never depend on the caret position: every digit is appended to the amount (bank style).
+  input.addEventListener("beforeinput", function (e) {
+    var t = e.inputType;
+    if (t === "insertText" || t === "insertFromDrop") {
+      e.preventDefault();
+      if (allSelected()) cents = 0;                      // typing over a selected amount starts a fresh one
+      var ds = (e.data || "").replace(/\D/g, "");
+      for (var i = 0; i < ds.length; i++) cents = Math.min(cents * 10 + parseInt(ds[i], 10), MAX);
+      show(); caretEnd(); schedule();
+    } else if (t.indexOf("delete") === 0) {
+      e.preventDefault();
+      cents = (allSelected() || t === "deleteByCut") ? 0 : Math.floor(cents / 10);
+      show(); caretEnd(); schedule();
+    }
+  });
+  // fallback for input methods that cannot be cancelled (e.g. some Android keyboards)
+  input.addEventListener("input", function () {
+    var d = input.value.replace(/\D/g, "").slice(0, 11);
+    cents = d ? Math.min(parseInt(d, 10), MAX) : 0;
+    show(); caretEnd(); schedule();
+  });
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    if (e.key === "Escape") { cents = 0; show(); schedule(); }
+  });
+  input.addEventListener("paste", function (e) {
+    e.preventDefault();
+    var txt = (e.clipboardData || window.clipboardData).getData("text").replace(/[^0-9.]/g, "");
+    if (!txt) return;
+    cents = Math.min(txt.indexOf(".") >= 0 ? Math.round(parseFloat(txt) * 100) : parseInt(txt, 10) * 100, MAX) || 0;
+    show(); caretEnd(); schedule();
+  });
+  // clicking anywhere in the box focuses the field and selects the amount (typing then starts from 0.0x)
+  box.addEventListener("mousedown", function (e) { if (e.target !== input) setTimeout(function () { input.focus(); input.select(); }, 0); });
+  input.addEventListener("focus", function () { box.classList.add("focus"); setTimeout(function () { input.select(); }, 0); });
+  input.addEventListener("click", function () { input.select(); });
+  input.addEventListener("mouseup", function (e) { e.preventDefault(); });
+  input.addEventListener("blur", function () { box.classList.remove("focus"); commit(); });
+
+  window.addEventListener("message", function (e) {
+    if (!e.data || e.data.type !== "streamlit:render") return;
+    var a = e.data.args || {};
+    labelEl.textContent = a.label || "";
+    labelEl.style.display = a.label ? "block" : "none";
+    input.disabled = !!a.disabled;
+    box.classList.toggle("disabled", !!a.disabled);
+    if (initArg !== a.value) {                 // only (re)initialise when Python passes a NEW starting value
+      initArg = a.value;
+      cents = Math.round((Number(a.value) || 0) * 100);
+      committed = cents;
+      show();
+    }
+    send("streamlit:setFrameHeight", {height: a.label ? 68 : 44});
+  });
+  send("streamlit:componentReady", {apiVersion: 1});
+</script>
+</body>
+</html>

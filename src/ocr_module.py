@@ -12,7 +12,7 @@ import time
 import cv2
 import numpy as np
 
-from src import preprocessor
+from src import item_classifier, preprocessor
 from utils import gemini_helper
 from utils.gemini_helper import NetworkError, ParseError, QuotaError
 
@@ -98,27 +98,80 @@ def paddle_available() -> bool:
         return False
 
 
-def paddle_ocr(img) -> str:
-    """Run local PaddleOCR on the preprocessed image and return the text, one line per box."""
+def _boxes_3x(page, n):
+    """Bounding boxes (x1, y1, x2, y2) of the recognised texts in a PaddleOCR 3.x result, or None."""
+    try:
+        if "rec_boxes" in page:
+            arr = np.asarray(page["rec_boxes"], dtype=float)
+            if arr.ndim == 2 and arr.shape[1] == 4 and len(arr) == n:
+                return [tuple(a) for a in arr]
+        if "rec_polys" in page:
+            polys = [np.asarray(p, dtype=float) for p in page["rec_polys"]]
+            if len(polys) == n:
+                return [(p[:, 0].min(), p[:, 1].min(), p[:, 0].max(), p[:, 1].max()) for p in polys]
+    except Exception:
+        pass
+    return None
+
+
+def _group_rows(entries):
+    """entries = [(text, x1, y1, x2, y2)] -> text with one line per VISUAL row (boxes on the same row are
+    joined left to right), so an item name and its price end up on the same line."""
+    if not entries:
+        return ""
+    heights = sorted(max(e[4] - e[2], 1.0) for e in entries)
+    tol = 0.6 * heights[len(heights) // 2]
+    ents = sorted(entries, key=lambda e: (e[2] + e[4]) / 2)
+    rows, centres = [], []
+    for e in ents:
+        yc = (e[2] + e[4]) / 2
+        if rows and abs(yc - sum(centres[-1]) / len(centres[-1])) <= tol:
+            rows[-1].append(e)
+            centres[-1].append(yc)
+        else:
+            rows.append([e])
+            centres.append([yc])
+    return "\n".join("  ".join(x[0] for x in sorted(r, key=lambda e: e[1])) for r in rows)
+
+
+def paddle_ocr_rows(img):
+    """Run local PaddleOCR once. Returns (text, rows_text): text = one line per detected box (used for
+    merchant / date / total), rows_text = boxes merged per visual row (used for line items)."""
     engine = _get_paddle()
     rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR) if img.ndim == 2 else img
-    lines = []
+    lines, entries = [], []
     if hasattr(engine, "predict"):                         # PaddleOCR 3.x
         for page in engine.predict(rgb) or []:
-            texts = page["rec_texts"] if "rec_texts" in page else []
-            lines.extend(str(x) for x in texts)
+            texts = [str(x) for x in (page["rec_texts"] if "rec_texts" in page else [])]
+            boxes = _boxes_3x(page, len(texts))
+            for k, tx in enumerate(texts):
+                lines.append(tx)
+                if boxes:
+                    entries.append((tx,) + tuple(boxes[k]))
     else:                                                  # PaddleOCR 2.x: [[box, (text, score)], ...]
         for page in engine.ocr(rgb, cls=True) or []:
             for item in page or []:
                 try:
-                    lines.append(item[1][0])
-                except (IndexError, TypeError):
+                    tx = item[1][0]
+                    pts = np.asarray(item[0], dtype=float)
+                    lines.append(tx)
+                    entries.append((tx, pts[:, 0].min(), pts[:, 1].min(), pts[:, 0].max(), pts[:, 1].max()))
+                except Exception:
                     pass
-    return "\n".join(lines)
+    try:
+        rows = _group_rows(entries) if len(entries) == len(lines) else ""
+    except Exception:
+        rows = ""
+    return "\n".join(lines), rows
+
+
+def paddle_ocr(img) -> str:
+    """Run local PaddleOCR on the preprocessed image and return the text, one line per box."""
+    return paddle_ocr_rows(img)[0]
 
 
 # ---------------------------------------------------------------- engine selector
-def extract_receipt(image_bytes: bytes, prefer_offline: bool = False) -> dict:
+def extract_receipt(image_bytes: bytes, prefer_offline: bool = False, categories=None) -> dict:
     """Returns {merchant, date, amount, complete, engine, raw_text, seconds, note}.
     Raises RuntimeError only if BOTH engines are unavailable."""
     t0 = time.time()
@@ -127,11 +180,13 @@ def extract_receipt(image_bytes: bytes, prefer_offline: bool = False) -> dict:
 
     if not prefer_offline and gemini_helper.is_configured() and is_online():
         try:
-            data = gemini_helper.extract_receipt_fields(to_jpeg_bytes(img))
+            data = gemini_helper.extract_receipt_fields(to_jpeg_bytes(img), categories)
             fields = preprocessor.validate_structured(data)
             if data.get("amount") is None and data.get("merchant") is None:
                 raise ParseError("empty Gemini response")
-            fields.update(engine="gemini", raw_text=str(data), seconds=round(time.time() - t0, 2), note="")
+            fields.update(engine="gemini", raw_text=str(data), seconds=round(time.time() - t0, 2), note="",
+                          items=item_classifier.classify_items(
+                              preprocessor.validate_items(data.get("items"), categories or []), categories))
             return fields
         except (NetworkError, QuotaError, ParseError) as e:     # -> fall back to PaddleOCR
             note = f"Gemini unavailable ({e}); switched to PaddleOCR."
@@ -144,7 +199,12 @@ def extract_receipt(image_bytes: bytes, prefer_offline: bool = False) -> dict:
         raise RuntimeError("PaddleOCR is not installed, and Gemini is not available. "
                            "Install paddleocr/paddlepaddle (see README) or enter the transaction manually.")
     processed = preprocess(img)
-    text = paddle_ocr(processed)
+    text, rows_text = paddle_ocr_rows(processed)
     fields = preprocessor.parse_fields(text)
-    fields.update(engine="paddleocr", raw_text=text, seconds=round(time.time() - t0, 2), note=note)
+    try:                                              # offline line items: best effort, never blocks the receipt
+        items = preprocessor.parse_items(rows_text or text, fields["amount"])
+        items = item_classifier.classify_items(items, categories)
+    except Exception:
+        items = []
+    fields.update(engine="paddleocr", raw_text=text, seconds=round(time.time() - t0, 2), note=note, items=items)
     return fields

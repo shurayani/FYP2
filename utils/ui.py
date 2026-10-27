@@ -1,8 +1,11 @@
 """Small shared Streamlit helpers (login guard, formatting, sidebar, auto-sync)."""
 import time
-from datetime import date
+from datetime import date, datetime, timezone
+
+from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from src import db_manager as db
 from utils.i18n import t
@@ -78,3 +81,59 @@ def page_header(title: str, caption: str = ""):
     st.title(title)
     if caption:
         st.caption(caption)
+
+
+# ---------------------------------------------------------------- bank-style amount input
+_MONEY_DIR = Path(__file__).resolve().parent.parent / "components" / "money_input"
+_money_component = (components.declare_component("money_input", path=str(_MONEY_DIR))
+                    if (_MONEY_DIR / "index.html").exists() else None)
+
+
+def money_input(label, value=0.0, key=None, disabled=False):
+    """Amount input that works like a bank app: starts at 0.00 and each digit pushes the value up from the sen
+    (1 -> 0.01, 12 -> 0.12, 125 -> 1.25). Returns a float in RM with 2 decimals.
+    The value is sent to Python when you press Enter or leave the field.
+    `value` is only the STARTING amount (use a new `key` to start over). Falls back to st.number_input
+    if the component folder is missing."""
+    value = round(float(value or 0.0), 2)
+    if _money_component is None:
+        return float(st.number_input(label, min_value=0.0, value=value, step=0.10, format="%.2f", key=key))
+    out = _money_component(label=label, value=value, disabled=disabled, key=key, default=value)
+    try:
+        return round(max(float(out), 0.0), 2)
+    except (TypeError, ValueError):
+        return value
+
+
+def local_time(ts, with_time=True):
+    """UTC ISO timestamp (as stored in the database) -> this computer's local time, e.g. '19 Oct 2026, 5:43 PM'."""
+    if not ts:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.astimezone()
+        day = f"{dt.day} {dt:%b %Y}"
+        return f"{day}, {dt.hour % 12 or 12}:{dt:%M} {dt:%p}" if with_time else day
+    except (ValueError, TypeError):
+        return str(ts)
+
+
+def budget_banner(user_id):
+    """Red banner for categories over this month's budget (>= 100 %), amber for >= 75 %."""
+    from src import analytics
+    bva = analytics.budget_vs_actual(user_id, analytics.month_str(date.today()))
+    if bva.empty:
+        return
+
+    def lines(df):
+        return "; ".join(f"{cat_label(r['category_name'])} (RM {r['actual']:,.2f} / RM {r['budget']:,.2f})"
+                         for _, r in df.iterrows())
+
+    over = bva[bva["pct"] >= 100]
+    near = bva[(bva["pct"] >= 75) & (bva["pct"] < 100)]
+    if not over.empty:
+        st.error(t("Over budget this month: {items}", items=lines(over)))
+    if not near.empty:
+        st.warning(t("Close to the budget limit (75% or more): {items}", items=lines(near)))
