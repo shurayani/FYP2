@@ -66,10 +66,8 @@ def local_user_count() -> int:
 def restore_all() -> dict:
     """Copy every record from Supabase into the (empty) local database, parents before children.
     Returns {"restored": n, "failed": n, "error": text or None}."""
-    global last_restore
-    out = {"restored": 0, "failed": 0, "error": None, "errors": [], "at": time.strftime("%Y-%m-%d %H:%M:%S")}
+    out = {"restored": 0, "failed": 0, "error": None}
     if not ready():
-        out["error"] = "cloud mode is off or Supabase is not configured"
         return out
     try:
         for table in db.SYNC_TABLES:
@@ -84,34 +82,11 @@ def restore_all() -> dict:
                     db.mark_sync_entry(owner, table, r["id"], "synced", remote_updated_at=r["updated_at"],
                                        local_updated_at=r["updated_at"], operation="update")
                     out["restored"] += 1
-                except Exception as e:
+                except Exception:
                     out["failed"] += 1                         # e.g. a record whose parent is missing remotely
-                    if len(out["errors"]) < 10:
-                        out["errors"].append(f"{table} {str(r.get('id'))[:8]}: {str(e)[:150]}")
     except Exception as e:                                      # Supabase unreachable / wrong key / table missing
-        out["error"] = str(e)[:300]
-    last_restore = out
-    print(f"[IPECS] restore from Supabase: {out}", flush=True)
+        out["error"] = str(e)[:200]
     return out
-
-
-last_restore = None
-
-
-def check() -> dict:
-    """What this server sees - for the Admin Panel 'Cloud / Sync check' tab."""
-    from utils.config import DB_PATH
-    info = {"cloud_mode": enabled(), "supabase_configured": sync_manager.is_configured(), "db_path": str(DB_PATH),
-            "local_users": [], "remote_users": [], "remote_error": None, "last_restore": last_restore}
-    with db.get_conn() as c:
-        info["local_users"] = [r[0] for r in c.execute(
-            "SELECT username FROM users WHERE id<>? ORDER BY username", (db.ADMIN_ID,)).fetchall()]
-    if info["supabase_configured"]:
-        try:
-            info["remote_users"] = sorted(r.get("username") for r in _all_rows("users"))
-        except Exception as e:
-            info["remote_error"] = str(e)[:300]
-    return info
 
 
 def restore_if_empty():

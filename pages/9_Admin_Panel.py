@@ -13,9 +13,8 @@ from utils.i18n import t
 user = ui.require_login(admin_only=True)
 st.title(f"{t('Admin Panel')}")
 
-tab_users, tab_sys, tab_cat, tab_tx, tab_cloud = st.tabs([t("User Management"), t("System Overview"),
-                                               t("Category Management"), t("Transaction Oversight"),
-                                               "Cloud / Sync check"])
+tab_users, tab_sys, tab_cat, tab_tx = st.tabs([t("User Management"), t("System Overview"),
+                                               t("Category Management"), t("Transaction Oversight")])
 
 # ------------------------------------------------------------------ user management
 with tab_users:
@@ -143,37 +142,3 @@ with tab_tx:
                 st.success(t("Alert created for the user."))
     else:
         st.info(t("No transactions match the current filters."))
-
-
-# ------------------------------------------------------------------ cloud / sync check (patch #18)
-with tab_cloud:
-    from src import cloud_mode
-    info = cloud_mode.check()
-    c1, c2 = st.columns(2)
-    c1.metric("Cloud mode (IPECS_CLOUD)", "ON" if info["cloud_mode"] else "OFF")
-    c2.metric("Supabase configured", "Yes" if info["supabase_configured"] else "No")
-    st.caption(f"Database on this server: {info['db_path']}")
-    c3, c4 = st.columns(2)
-    with c3:
-        st.markdown(f"**Accounts in this server's database ({len(info['local_users'])})**")
-        st.write(", ".join(info["local_users"]) or "none")
-    with c4:
-        st.markdown(f"**Accounts in Supabase ({len(info['remote_users'])})**")
-        if info["remote_error"]:
-            st.error("Supabase could not be read: " + info["remote_error"])
-        else:
-            st.write(", ".join(info["remote_users"]) or "none")
-    missing = sorted(set(info["remote_users"]) - set(info["local_users"]))
-    if missing:
-        st.warning("In Supabase but NOT on this server (cannot log in here yet): " + ", ".join(missing))
-    st.markdown("**Last restore from Supabase**")
-    st.json(info["last_restore"] or {"note": "no restore has run since this server started"})
-    if st.button("Restore from Supabase now", type="primary"):
-        with st.spinner("Copying accounts and records from Supabase..."):
-            res = cloud_mode.restore_all()
-        if res["error"]:
-            st.error("Restore failed: " + res["error"])
-        else:
-            st.success(f"Restored {res['restored']} record(s); {res['failed']} could not be copied.")
-        if res["errors"]:
-            st.code("\n".join(res["errors"]))
