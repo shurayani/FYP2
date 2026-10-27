@@ -14,9 +14,9 @@ uid = user["id"]
 st.title(f"{t('Budget Goal Management')}")
 
 cats = ui.category_map(uid)
-tab_cur, tab_hist = st.tabs([t("Current Month"), t("History")])
+_view = ui.view_switcher("bg_view", {"current": t("Current Month"), "history": t("History")}, "current")
 
-with tab_cur:
+if _view == "current":
     months = ui.month_options(12, 1)
     month = st.selectbox(t("Month"), months, index=months.index(analytics.month_str(date.today())))
 
@@ -63,7 +63,7 @@ with tab_cur:
                     db.delete_budget(b["budget_id"], uid)
                     st.rerun()
 
-with tab_hist:
+if _view == "history":
     rows = []
     cur = analytics.month_str(date.today())
     for i in range(5, -1, -1):

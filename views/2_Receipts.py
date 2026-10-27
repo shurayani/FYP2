@@ -20,7 +20,8 @@ cats = ui.category_map(uid)                       # {label: id}
 labels = list(cats.keys())
 id_to_label = {v: k for k, v in cats.items()}
 
-tab_ocr, tab_manual, tab_gallery = st.tabs([t("OCR Receipt Upload"), t("Manual Data Form"), t("Receipt Gallery")])
+_view = ui.view_switcher("rc_view", {"ocr": t("OCR Receipt Upload"), "manual": t("Manual Data Form"),
+                                      "gallery": t("Receipt Gallery")}, "ocr")
 
 
 def _category_index(cat_id):
@@ -133,7 +134,7 @@ def item_editor(key, items, total, default_label):
 
 
 # ------------------------------------------------------------------------- OCR upload
-with tab_ocr:
+if _view == "ocr":
     online = ui.online_status()
     st.caption(t("Gemini AI is used when online; PaddleOCR is used automatically when offline or if Gemini fails.")
                + "  " + ((":green[●] " + t("Online")) if online else (":red[●] " + t("Offline"))))
@@ -251,7 +252,7 @@ with tab_ocr:
         st.success(st.session_state.pop("flash_ocr"))
 
 # ------------------------------------------------------------------------- manual entry
-with tab_manual:
+if _view == "manual":
     st.caption(t("Record a transaction without a receipt. Leave the category on Auto to let the classifier decide."))
     n = st.session_state.setdefault("manual_n", 0)          # bumping it clears the form after a save
     if st.session_state.get("manual_flash"):
@@ -298,7 +299,7 @@ with tab_manual:
             st.rerun()
 
 # ------------------------------------------------------------------------- gallery
-with tab_gallery:
+if _view == "gallery":
     receipts = db.get_receipts(uid)
     if not receipts:
         st.info(t("No receipts uploaded yet."))

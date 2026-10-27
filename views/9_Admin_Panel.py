@@ -25,15 +25,14 @@ def _push_user_change(user_id):
 st.title(f"{t('Admin Panel')}")
 
 from src import cloud_mode as _cloud_mode
-_tab_names = [t("User Management"), t("System Overview"), t("Category Management"), t("Transaction Oversight")]
-if _cloud_mode.enabled():                          # diagnosis tab: cloud version only
-    _tab_names.append("Cloud / Sync check")
-_tabs = st.tabs(_tab_names)
-tab_users, tab_sys, tab_cat, tab_tx = _tabs[:4]
-tab_cloud = _tabs[4] if len(_tabs) > 4 else None
+_views = {"users": t("User Management"), "sys": t("System Overview"), "cat": t("Category Management"),
+          "tx": t("Transaction Oversight")}
+if _cloud_mode.enabled():                          # diagnosis section: cloud version only
+    _views["cloud"] = "Cloud / Sync check"
+_view = ui.view_switcher("admin_view", _views, "users")
 
 # ------------------------------------------------------------------ user management
-with tab_users:
+if _view == "users":
     users = [u for u in db.list_users() if u["role"] == "user"]
     k = st.columns(3)
     k[0].metric(t("Registered users"), len(users))
@@ -64,7 +63,7 @@ with tab_users:
         st.info(t("No users found."))
 
 # ------------------------------------------------------------------ system overview
-with tab_sys:
+if _view == "sys":
     k = st.columns(4)
     k[0].metric(t("Total users"), len([u for u in db.list_users() if u["role"] == "user"]))
     k[1].metric(t("Total transactions"), db.count_transactions_all())
@@ -95,7 +94,7 @@ with tab_sys:
              f"{t('API key configured') if gemini_helper.is_configured() else t('no API key')}")
 
 # ------------------------------------------------------------------ category management
-with tab_cat:
+if _view == "cat":
     summ = db.category_summary_all()
     st.dataframe(pd.DataFrame({
         t("Category"): [ui.cat_label(c["category_name"]) for c in summ],
@@ -129,7 +128,7 @@ with tab_cat:
             st.rerun()
 
 # ------------------------------------------------------------------ transaction oversight
-with tab_tx:
+if _view == "tx":
     users_all = [u for u in db.list_users() if u["role"] == "user"]
     f1, f2, f3, f4 = st.columns(4)
     u_sel = f1.selectbox(t("User"), [t("All")] + [u["username"] for u in users_all])
@@ -183,8 +182,8 @@ with tab_tx:
 
 
 # ------------------------------------------------------------------ cloud / sync check (patch #18)
-if tab_cloud is not None:
-    with tab_cloud:
+if _view == "cloud":
+    if _cloud_mode.enabled():
         from src import cloud_mode
         info = cloud_mode.check()
         c1, c2 = st.columns(2)

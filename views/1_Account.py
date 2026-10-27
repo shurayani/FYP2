@@ -62,9 +62,10 @@ if not user:
 # ------------------------------------------------------------------ logged in
 st.title(f"{t('Account')}")
 fresh = db.get_user(user["id"])
-tab_profile, tab_pw, tab_settings = st.tabs([t("Profile"), t("Change password"), t("Settings")])
+_view = ui.view_switcher("acc_view", {"profile": t("Profile"), "password": t("Change password"),
+                                       "settings": t("Settings")}, "profile")
 
-with tab_profile:
+if _view == "profile":
     with st.form("profile_form"):
         new_name = st.text_input(t("Username"), value=fresh["username"])
         new_email = st.text_input(t("Email"), value=fresh["email"])
@@ -79,7 +80,7 @@ with tab_profile:
             st.error(t(msg))
     st.caption(f"{t('Role')}: {fresh['role']} · {t('Member since')}: {ui.local_time(fresh['created_at'], False)}")
 
-with tab_pw:
+if _view == "password":
     if user["role"] == "admin":
         st.caption(t("The administrator password is configured through the ADMIN_PASSWORD setting, but you can also change it here."))
     with st.form("pw_form"):
@@ -91,7 +92,7 @@ with tab_pw:
         ok, msg = auth.change_password(user["id"], cur, new, conf)
         (st.success if ok else st.error)(t(msg))
 
-with tab_settings:
+if _view == "settings":
     st.subheader(t("Application preferences"))
     st.write(t("The interface language can be changed from the sidebar (English / Bahasa Malaysia)."))
     if user["role"] != "admin":

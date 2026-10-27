@@ -17,9 +17,10 @@ cats = ui.category_map(uid)
 labels = list(cats.keys())
 id_to_label = {v: k for k, v in cats.items()}
 
-tab_hist, tab_bills, tab_price = st.tabs([t("History"), t("Recurring bills"), t("Price check")])
+_view = ui.view_switcher("tx_view", {"history": t("History"), "bills": t("Recurring bills"),
+                                      "price": t("Price check")}, "history")
 
-with tab_hist:
+if _view == "history":
 
     # ------------------------------------------------------------------ filters
     with st.expander(t("Filters"), expanded=True):
@@ -124,8 +125,8 @@ with tab_hist:
             if abs(sum(i["amount"] for i in its) - float(r["amount"])) > 0.005:
                 st.caption(t("Item prices are shown before discounts and fees. The transaction amount is what you paid."))
 
-with tab_bills:
+if _view == "bills":
     tx_tabs.render_recurring(uid)
 
-with tab_price:
+if _view == "price":
     tx_tabs.render_price_check(uid)

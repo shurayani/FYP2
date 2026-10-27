@@ -241,3 +241,27 @@ def bill_reminders(user_id, key_prefix="dash"):
             if c4.button(t("Skip"), key=f"{key_prefix}_skip_{b['id']}"):
                 recurring.skip(b, user_id)
                 st.rerun()
+
+
+
+def view_switcher(key, options: dict, default):
+    """Row of section buttons that replaces st.tabs and REMEMBERS the chosen section when the language or
+    dark mode changes. options = {section id: label}; returns the chosen section id."""
+    store = f"_view_{key}"
+    current = st.session_state.get(store, default)
+    if current not in options:
+        current = default
+    widget_key = f"{key}_{st.session_state.get('lang', 'en')}"      # new labels = new widget, same choice
+
+    def _changed():
+        chosen = st.session_state.get(widget_key)
+        if chosen is None:                                         # clicking the active section again
+            st.session_state[widget_key] = st.session_state.get(store, default)
+        else:
+            st.session_state[store] = chosen
+
+    extra = {} if widget_key in st.session_state else {"default": current}   # avoids Streamlit's double-value warning
+    st.segmented_control("section", list(options.keys()), format_func=lambda k: options[k],
+                         key=widget_key, on_change=_changed, label_visibility="collapsed", **extra)
+    st.session_state[store] = current
+    return current
