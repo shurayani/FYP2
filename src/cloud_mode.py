@@ -10,6 +10,7 @@ from src import db_manager as db
 from src import sync_manager
 
 PAGE = 1000                                    # Supabase returns at most 1000 rows per request
+_last_image_sync = 0.0
 
 
 def enabled() -> bool:
@@ -24,6 +25,15 @@ def push_now(user_id) -> None:
     """Push this user's pending changes. Never raises: on failure they stay pending and are retried next time."""
     if not ready() or not user_id or user_id == db.ADMIN_ID:
         return
+    global _last_image_sync
+    import time
+    if time.time() - _last_image_sync > 60:                   # images: at most once a minute
+        _last_image_sync = time.time()
+        try:
+            from src import image_store
+            image_store.sync_images()
+        except Exception:
+            pass
     try:
         if db.sync_counts(user_id)["pending"] == 0:
             return
