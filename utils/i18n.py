@@ -324,3 +324,16 @@ MS.update({
     "Latest anomaly alerts": "Amaran anomali terkini",
     "Shopping": "Beli-belah",
 })
+
+
+MS.update({
+    "Show": "Tunjuk",
+    "All transactions": "Semua transaksi",
+    "Unusual only (|Z| > 2)": "Luar biasa sahaja (|Z| > 2)",
+    "Highest |Z| first": "|Z| tertinggi dahulu",
+    "Largest amounts first": "Jumlah terbesar dahulu",
+    "Transactions shown": "Transaksi dipaparkan",
+    "Unusual (|Z| > 2)": "Luar biasa (|Z| > 2)",
+    "Already have an alert": "Sudah ada amaran",
+    "Alert": "Amaran",
+})

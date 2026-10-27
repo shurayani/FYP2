@@ -778,3 +778,9 @@ def recent_alerts_all(limit=5):
             JOIN categories c ON c.id=t.category_id JOIN users u ON u.id=a.user_id
             WHERE a.is_deleted=0 AND t.is_deleted=0 AND a.status='active'
             ORDER BY a.created_at DESC LIMIT ?""", (limit,)))
+
+
+def alert_status_map():
+    """{transaction_id: alert status} for every alert that is not deleted (admin review queue, patch #22)."""
+    with get_conn() as c:
+        return {r[0]: r[1] for r in c.execute("SELECT transaction_id, status FROM anomaly_alerts WHERE is_deleted=0")}

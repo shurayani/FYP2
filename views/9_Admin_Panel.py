@@ -141,11 +141,31 @@ with tab_tx:
     s, e = (rng if isinstance(rng, (tuple, list)) and len(rng) == 2 else (None, None))
     rows = db.get_transactions(uid_filter, start=s, end=e, category_id=None if c_sel == t("All") else cats[c_sel],
                                max_amount=max_amt if max_amt > 0 else None)
+    # ---- review queue (patch #22): the most suspicious transactions first, not one by one
+    from utils.config import ANOMALY_Z_THRESHOLD
+    opt_all, opt_unusual, opt_z, opt_amt = (t("All transactions"), t("Unusual only (|Z| > 2)"),
+                                            t("Highest |Z| first"), t("Largest amounts first"))
+    focus = st.radio(t("Show"), [opt_all, opt_unusual, opt_z, opt_amt], horizontal=True, key="adm_focus")
+    for r_ in rows:
+        r_["_absz"] = abs(r_["z_score"] or 0.0)
+    if focus == opt_unusual:
+        rows = sorted([r_ for r_ in rows if r_["_absz"] > ANOMALY_Z_THRESHOLD], key=lambda r_: -r_["_absz"])
+    elif focus == opt_z:
+        rows = sorted(rows, key=lambda r_: -r_["_absz"])
+    elif focus == opt_amt:
+        rows = sorted(rows, key=lambda r_: -r_["amount"])
+    alert_map = db.alert_status_map()
+    q1, q2, q3 = st.columns(3)
+    q1.metric(t("Transactions shown"), len(rows))
+    q2.metric(t("Unusual (|Z| > 2)"), sum(1 for r_ in rows if r_["_absz"] > ANOMALY_Z_THRESHOLD))
+    q3.metric(t("Already have an alert"), sum(1 for r_ in rows if r_["id"] in alert_map))
     if rows:
         df = pd.DataFrame(rows)
         view = pd.DataFrame({t("User"): df["username"], t("Date"): df["date"], t("Merchant"): df["merchant"],
                              t("Category"): df["category_name"].map(ui.cat_label), "RM": df["amount"].round(2),
-                             t("Anomaly"): df["is_anomaly"].map({1: "Yes", 0: ""})})
+                             "Z": df["z_score"].fillna(0.0).astype(float).round(2),
+                             t("Anomaly"): df["is_anomaly"].map({1: "Yes", 0: ""}),
+                             t("Alert"): df["id"].map(lambda i: t(alert_map[i]) if i in alert_map else "")})
         st.dataframe(view, width="stretch", hide_index=True)
         st.download_button(t("Export CSV"), view.to_csv(index=False).encode("utf-8"),
                            file_name="ipecs_admin_transactions.csv", mime="text/csv")
