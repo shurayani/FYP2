@@ -79,6 +79,37 @@ def ensure_remote_system_categories():
     _system_categories_ok = True
 
 
+_supports = {}
+
+
+def remote_supports(table, column="id") -> bool:
+    """Does Supabase have this table/column yet? (supabase_patch_v23.sql may not have been run.)
+    A 'yes' is remembered; a 'no' is checked again after 5 minutes."""
+    import time
+    key = (table, column)
+    hit = _supports.get(key)
+    if hit is True or (hit is not None and time.time() - hit < 300):
+        return hit is True
+    try:
+        get_client().table(table).select(column).limit(1).execute()
+        _supports[key] = True
+    except Exception:
+        _supports[key] = time.time()
+    return _supports[key] is True
+
+
+def _remote_ready(table) -> bool:
+    return table != "recurring_bills" or remote_supports("recurring_bills")
+
+
+def _for_remote(table, row):
+    """Leave out the new column while Supabase does not have it yet."""
+    if table == "transactions" and "predicted_category_id" in row \
+            and not remote_supports("transactions", "predicted_category_id"):
+        return {k: v for k, v in row.items() if k != "predicted_category_id"}
+    return row
+
+
 def push_pending(user_id, result):
     ensure_remote_system_categories()
     pending = db.get_sync_entries(user_id, "pending")
@@ -86,6 +117,8 @@ def push_pending(user_id, result):
     pending.sort(key=lambda e: (db.SYNC_TABLES.index(e["table_name"]), e["local_updated_at"]))
     for entry in pending:
         table, rid = entry["table_name"], entry["record_id"]
+        if not _remote_ready(table):
+            continue                                             # stays pending until the table exists remotely
         local = db.get_row(table, rid)
         if local is None:                                        # nothing to send
             db.mark_sync_entry(user_id, table, rid, "synced")
@@ -99,14 +132,14 @@ def push_pending(user_id, result):
             if side == "remote":
                 db.apply_remote_row(table, remote)
             else:
-                get_client().table(table).upsert(local).execute()
+                get_client().table(table).upsert(_for_remote(table, local)).execute()
             db.mark_sync_entry(user_id, table, rid, "conflict", remote_updated_at=winner["updated_at"],
                                resolved_value={"kept": side, "version": winner})
             result["conflicts"].append({"table": table, "record_id": rid, "kept": side,
                                         "local_updated_at": local["updated_at"],
                                         "remote_updated_at": remote["updated_at"]})
         else:
-            get_client().table(table).upsert(local).execute()
+            get_client().table(table).upsert(_for_remote(table, local)).execute()
             db.mark_sync_entry(user_id, table, rid, "synced", remote_updated_at=local["updated_at"])
         result["pushed"] += 1
 
@@ -114,6 +147,8 @@ def push_pending(user_id, result):
 def pull_remote(user_id, result):
     entries_by_key = {(e["table_name"], e["record_id"]): e for e in db.get_sync_entries(user_id)}
     for table in db.SYNC_TABLES:
+        if not _remote_ready(table):
+            continue
         q = get_client().table(table).select("*")
         q = q.eq("id", user_id) if table == "users" else q.eq("user_id", user_id)
         remote_rows = q.execute().data or []

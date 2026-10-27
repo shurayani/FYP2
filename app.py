@@ -171,6 +171,24 @@ def dashboard():
             k[2].metric(t("Receipts uploaded"), db.count_receipts_all())
             k[3].metric(t("Active anomaly alerts"), db.count_active_alerts_all())
 
+        acc = db.classifier_accuracy()
+        st.subheader(t("Category suggestions in real use"), anchor=False)
+        if not acc["total"]:
+            st.caption(t("No data yet. This fills in as users save transactions with the category IPECS suggested."))
+        else:
+            a1, a2 = st.columns([1, 2], gap="large")
+            a1.metric(t("Suggestions kept by users"), f"{acc['kept'] / acc['total'] * 100:.0f}%")
+            a1.caption(t("{k} of {n} suggested categories were kept.", k=acc["kept"], n=acc["total"]))
+            with a2:
+                if acc["corrections"]:
+                    st.caption(t("Most common corrections"))
+                    st.dataframe(pd.DataFrame({
+                        t("Suggested"): [ui.cat_label(c_["suggested"]) for c_ in acc["corrections"]],
+                        t("Changed to"): [ui.cat_label(c_["chosen"]) for c_ in acc["corrections"]],
+                        t("Times"): [c_["times"] for c_ in acc["corrections"]]}), width="stretch", hide_index=True)
+                else:
+                    st.caption(t("No suggestion has been corrected so far."))
+
         c1, c2 = st.columns([3, 2], gap="large")
         with c1:
             st.subheader(t("Activity per month"), anchor=False)
@@ -245,6 +263,7 @@ def dashboard():
             with st.container(key="qa_all"):
                 st.page_link("views/3_Transactions.py", label=t("All transactions"), icon=":material/receipt_long:")
     ui.budget_banner(uid)
+    ui.bill_reminders(uid, "dash")
 
     slip_col, glance_col = st.columns([5, 4], gap="large")
     with slip_col:
@@ -334,8 +353,10 @@ else:
     else:
         pages += [st.Page("views/2_Receipts.py", title=t("Receipts")),
                   st.Page("views/3_Transactions.py", title=t("Transactions")),
+                  st.Page("views/11_Price_Check.py", title=t("Price Check")),
                   st.Page("views/4_Categories.py", title=t("Categories")),
                   st.Page("views/5_Budget_Goals.py", title=t("Budget Goals")),
+                  st.Page("views/12_Recurring_Bills.py", title=t("Recurring Bills")),
                   st.Page("views/6_Reports.py", title=t("Reports")),
                   st.Page("views/7_Anomaly_Alerts.py", title=t("Anomaly Alerts")),
                   st.Page("views/8_Forecast.py", title=t("Forecast")),

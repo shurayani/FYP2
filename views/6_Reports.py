@@ -61,6 +61,13 @@ for r in reports:
             st.dataframe(pd.DataFrame(data["top_merchants"]), width="stretch", hide_index=True)
         for line in data["trends"]:
             st.write("• " + line)
+        try:
+            from src import report_pdf
+            pdf = report_pdf.build_pdf(data, user["username"], t, ui.cat_label, ui.month_label(r["report_month"]))
+            st.download_button(t("Download PDF"), pdf, file_name=f"IPECS_report_{r['report_month']}.pdf",
+                               mime="application/pdf", key=f"pdf_{r['id']}", icon=":material/picture_as_pdf:")
+        except ImportError:
+            st.caption(t("PDF download needs the reportlab package: pip install reportlab"))
         b1, b2 = st.columns(2)
         if b1.button(t("Regenerate"), key=f"rg_{r['id']}"):
             db.save_report(uid, r["report_month"], analytics.build_report(uid, r["report_month"]))

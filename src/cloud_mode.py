@@ -73,6 +73,8 @@ def restore_all() -> dict:
         return out
     try:
         for table in db.SYNC_TABLES:
+            if not sync_manager._remote_ready(table):          # e.g. recurring_bills before the SQL was run
+                continue
             for r in _all_rows(table):
                 if table == "categories" and r.get("is_system"):
                     continue                                   # the 7 system categories already exist locally

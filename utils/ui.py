@@ -210,3 +210,34 @@ def budget_meter(pct) -> str:
     return (f"<div class='meter'><div class='meter-top'><span>{_esc(t('Budget used this month'))}</span>"
             f"<b>{pct:.0f}%</b></div><div class='meter-track'>"
             f"<div class='meter-fill' style='width:{max(0, min(100, pct)):.0f}%;background:{colour}'></div></div></div>")
+
+
+
+def bill_reminders(user_id, key_prefix="dash"):
+    """Recurring bills that are due: Add / Change amount / Skip (patch #23). Nothing happens automatically."""
+    from src import analytics, recurring
+    due = recurring.due_bills(user_id)
+    if not due:
+        return
+    st.subheader(t("Bills due"), anchor=False)
+    for b in due:
+        when = (t("overdue since {d}", d=f"{b['due'].day} {b['due']:%b}") if b["overdue"]
+                else t("due {d}", d=f"{b['due'].day} {b['due']:%b}"))
+        with st.container(border=True, key=f"{key_prefix}_bill_{b['id']}"):
+            c1, c2, c3, c4 = st.columns([3, 1, 1.4, 1], vertical_alignment="center")
+            c1.markdown(f"**{b['name']}** · {money(b['amount'])}  \n{cat_label(b['category_name'])} · {when}")
+            if c2.button(t("Add"), key=f"{key_prefix}_add_{b['id']}", type="primary"):
+                recurring.confirm(b, user_id)
+                analytics.detect_anomalies(user_id)
+                st.rerun()
+            with c3.popover(t("Change amount")):
+                new_amt = money_input(t("This month's amount"), value=float(b["amount"]),
+                                      key=f"{key_prefix}_amt_{b['id']}")
+                keep = st.checkbox(t("Use this amount from now on"), key=f"{key_prefix}_keep_{b['id']}")
+                if st.button(t("Add with this amount"), key=f"{key_prefix}_addamt_{b['id']}") and new_amt > 0:
+                    recurring.confirm(b, user_id, amount=new_amt, keep_amount=keep)
+                    analytics.detect_anomalies(user_id)
+                    st.rerun()
+            if c4.button(t("Skip"), key=f"{key_prefix}_skip_{b['id']}"):
+                recurring.skip(b, user_id)
+                st.rerun()

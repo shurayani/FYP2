@@ -236,7 +236,9 @@ with tab_ocr:
                 else:
                     parts = rows if rows is not None else [(cat_label, amount)]
                     for label, amt in parts:
-                        db.add_transaction(uid, merchant, tx_date, amt, cats[label], is_manual=False, receipt_id=rid)
+                        db.add_transaction(uid, merchant, tx_date, amt, cats[label], is_manual=False, receipt_id=rid,
+                                           predicted_category_id=(cats[labels[_category_index(res["category_id"])]]
+                                                                  if rows is None else None))
                     msg = (t("{n} transactions saved.", n=len(parts)) if len(parts) > 1 else t("Transaction saved."))
                 analytics.detect_anomalies(uid)
                 st.session_state.pop("ocr_result", None)
@@ -287,7 +289,8 @@ with tab_manual:
                     cid = cats[cat_choice]
                 if cid not in id_to_label:                    # predicted category missing/deleted -> first available
                     cid = list(cats.values())[0]
-                db.add_transaction(uid, merchant, tx_date, amount, cid, is_manual=True)
+                db.add_transaction(uid, merchant, tx_date, amount, cid, is_manual=True,
+                                   predicted_category_id=cid if cat_choice == auto else None)
                 text = f"{t('Transaction saved.')} {t('Category')}: {id_to_label[cid]}"
             analytics.detect_anomalies(uid)
             st.session_state["manual_flash"] = (text, low_conf)

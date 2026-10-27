@@ -70,7 +70,8 @@ with st.expander(t("Add transaction manually")):
             cid = classifier.predict_category_id(m) if c == auto else cats[c]
             if cid not in id_to_label:
                 cid = list(cats.values())[0]
-            db.add_transaction(uid, m, d, a, cid, is_manual=True)
+            db.add_transaction(uid, m, d, a, cid, is_manual=True,
+                               predicted_category_id=cid if c == auto else None)
             analytics.detect_anomalies(uid)
             st.success(t("Transaction saved."))
             st.session_state["add_tx_n"] = add_n + 1

@@ -21,7 +21,7 @@ ADMIN_ID = "00000000-0000-0000-0000-000000000001"
 
 # Tables that take part in synchronisation, in foreign-key order.
 SYNC_TABLES = ["users", "categories", "receipts", "transactions", "transaction_items",
-               "budgets", "reports", "anomaly_alerts", "forecasts"]
+               "budgets", "recurring_bills", "reports", "anomaly_alerts", "forecasts"]
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -189,6 +189,7 @@ _hash_fn = None                                # remembered so a wiped database 
 def _create_schema(c, hash_password=None):
     """Tables + seven system categories + admin account (all idempotent)."""
     c.executescript(SCHEMA)
+    _migrate_v23(c)
     ts = now()
     for name in SYSTEM_CATEGORIES:                 # also adds system categories introduced later (Shopping)
         if not c.execute("SELECT 1 FROM categories WHERE id=?", (category_uuid(name),)).fetchone():
@@ -202,6 +203,29 @@ def _create_schema(c, hash_password=None):
                       " VALUES (?,?,?,?,?,1,?,?)",
                       (ADMIN_ID, ADMIN_USERNAME, ADMIN_EMAIL, hash_password(ADMIN_PASSWORD), "admin", ts, ts))
     c.commit()
+
+
+def _migrate_v23(c):
+    """Patch #23: suggested category on transactions + the recurring_bills table."""
+    cols = [r[1] for r in c.execute("PRAGMA table_info(transactions)").fetchall()]
+    if "predicted_category_id" not in cols:
+        c.execute("ALTER TABLE transactions ADD COLUMN predicted_category_id TEXT")
+    c.executescript("""
+CREATE TABLE IF NOT EXISTS recurring_bills (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    name TEXT NOT NULL,
+    amount REAL NOT NULL,
+    category_id TEXT NOT NULL REFERENCES categories(id),
+    day_of_month INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    last_handled_month TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_bills_user ON recurring_bills(user_id);
+""")
 
 
 def _ensure_schema(c):
@@ -445,13 +469,15 @@ _TX_SELECT = """SELECT t.*, c.category_name, u.username,
                 JOIN categories c ON c.id=t.category_id JOIN users u ON u.id=t.user_id"""
 
 
-def add_transaction(user_id, merchant, date, amount, category_id, is_manual=True, receipt_id=None):
+def add_transaction(user_id, merchant, date, amount, category_id, is_manual=True, receipt_id=None,
+                    predicted_category_id=None):
     tid, ts = new_id(), now()
     with get_conn() as c:
         _insert(c, "transactions", dict(id=tid, user_id=user_id, receipt_id=receipt_id,
                                         merchant=merchant.strip(), date=str(date), amount=float(amount),
                                         category_id=category_id, is_manual=int(is_manual), z_score=None,
-                                        is_anomaly=0, created_at=ts, updated_at=ts, is_deleted=0), user_id)
+                                        is_anomaly=0, created_at=ts, updated_at=ts, is_deleted=0,
+                                        predicted_category_id=predicted_category_id), user_id)
     return tid
 
 
@@ -703,7 +729,7 @@ def apply_remote_row(table, row: dict):
     if table not in SYNC_TABLES:
         raise ValueError(table)
     with get_conn() as c:
-        cols = [r["name"] for r in c.execute(f"PRAGMA table_info({table})").fetchall()]
+        cols = [r["name"] for r in c.execute(f"PRAGMA table_info({table})").fetchall() if r["name"] in row]
         data = {k: row.get(k) for k in cols}
         names = ", ".join(cols)
         marks = ", ".join("?" for _ in cols)
@@ -784,3 +810,55 @@ def alert_status_map():
     """{transaction_id: alert status} for every alert that is not deleted (admin review queue, patch #22)."""
     with get_conn() as c:
         return {r[0]: r[1] for r in c.execute("SELECT transaction_id, status FROM anomaly_alerts WHERE is_deleted=0")}
+
+
+# --------------------------------------------------------------------------- PATCH #23
+def classifier_accuracy():
+    """How often users kept the category IPECS suggested (all users)."""
+    with get_conn() as c:
+        n, kept = c.execute("SELECT COUNT(*), COALESCE(SUM(category_id = predicted_category_id), 0) FROM transactions"
+                            " WHERE is_deleted=0 AND predicted_category_id IS NOT NULL").fetchone()
+        top = c.execute("""
+            SELECT p.category_name, a.category_name, COUNT(*) FROM transactions t
+            JOIN categories p ON p.id=t.predicted_category_id JOIN categories a ON a.id=t.category_id
+            WHERE t.is_deleted=0 AND t.predicted_category_id IS NOT NULL AND t.category_id<>t.predicted_category_id
+            GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 5""").fetchall()
+    return {"total": n or 0, "kept": kept or 0,
+            "corrections": [{"suggested": a, "chosen": b, "times": k} for a, b, k in top]}
+
+
+def get_item_history(user_id):
+    """Every receipt item of the user with the shop and date (Price Check)."""
+    with get_conn() as c:
+        return _rows(c.execute("""
+            SELECT i.item_name, i.amount, t.merchant, t.date FROM transaction_items i
+            JOIN transactions t ON t.id=i.transaction_id
+            WHERE i.user_id=? AND i.is_deleted=0 AND t.is_deleted=0 ORDER BY t.date DESC""", (user_id,)))
+
+
+def add_bill(user_id, name, amount, category_id, day_of_month):
+    bid, ts = new_id(), now()
+    with get_conn() as c:
+        _insert(c, "recurring_bills", dict(id=bid, user_id=user_id, name=name.strip()[:80], amount=float(amount),
+                                           category_id=category_id, day_of_month=int(day_of_month), status="active",
+                                           last_handled_month=None, created_at=ts, updated_at=ts, is_deleted=0),
+                user_id)
+    return bid
+
+
+def get_bills(user_id):
+    with get_conn() as c:
+        return _rows(c.execute("SELECT b.*, c.category_name FROM recurring_bills b JOIN categories c ON c.id=b.category_id"
+                               " WHERE b.is_deleted=0 AND b.user_id=? ORDER BY b.day_of_month, b.name", (user_id,)))
+
+
+def update_bill(bill_id, user_id, **fields):
+    allowed = {k: v for k, v in fields.items()
+               if k in ("name", "amount", "category_id", "day_of_month", "status", "last_handled_month")}
+    with get_conn() as c:
+        _update(c, "recurring_bills", bill_id, allowed, user_id)
+
+
+def delete_bill(bill_id, user_id):
+    with get_conn() as c:
+        _update(c, "recurring_bills", bill_id, {"is_deleted": 1}, user_id, "delete")
