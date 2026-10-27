@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from utils.config import (ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_USERNAME, DB_PATH)
 
 SYSTEM_CATEGORIES = ["Food and Beverage", "Groceries", "Transport", "Utilities",
-                     "Education", "Health", "Entertainment"]
+                     "Education", "Health", "Entertainment", "Shopping"]
 
 ADMIN_ID = "00000000-0000-0000-0000-000000000001"
 
@@ -189,10 +189,9 @@ _hash_fn = None                                # remembered so a wiped database 
 def _create_schema(c, hash_password=None):
     """Tables + seven system categories + admin account (all idempotent)."""
     c.executescript(SCHEMA)
-    n = c.execute("SELECT COUNT(*) FROM categories").fetchone()[0]
-    if n == 0:
-        ts = now()
-        for name in SYSTEM_CATEGORIES:
+    ts = now()
+    for name in SYSTEM_CATEGORIES:                 # also adds system categories introduced later (Shopping)
+        if not c.execute("SELECT 1 FROM categories WHERE id=?", (category_uuid(name),)).fetchone():
             c.execute("INSERT INTO categories (id, category_name, is_system, user_id, updated_at, is_deleted)"
                       " VALUES (?,?,1,NULL,?,0)", (category_uuid(name), name, ts))
     if hash_password is not None:
@@ -752,3 +751,30 @@ def get_items(user_id, transaction_id=None):
     q += " ORDER BY i.created_at"
     with get_conn() as c:
         return _rows(c.execute(q, args))
+
+
+# --------------------------------------------------------------------------- ADMIN DASHBOARD (patch #21)
+def activity_by_month():
+    """({'YYYY-MM': transactions}, {'YYYY-MM': receipts}) over all users."""
+    with get_conn() as c:
+        tx = {r[0]: r[1] for r in c.execute(
+            "SELECT substr(date,1,7), COUNT(*) FROM transactions WHERE is_deleted=0 GROUP BY 1")}
+        rc = {r[0]: r[1] for r in c.execute(
+            "SELECT substr(upload_date,1,7), COUNT(*) FROM receipts WHERE is_deleted=0 GROUP BY 1")}
+    return tx, rc
+
+
+def ocr_engine_counts():
+    with get_conn() as c:
+        return {r[0]: r[1] for r in c.execute(
+            "SELECT COALESCE(ocr_engine,'unknown'), COUNT(*) FROM receipts WHERE is_deleted=0 GROUP BY 1")}
+
+
+def recent_alerts_all(limit=5):
+    with get_conn() as c:
+        return _rows(c.execute("""
+            SELECT a.*, t.merchant, t.amount, t.date, c.category_name, u.username
+            FROM anomaly_alerts a JOIN transactions t ON t.id=a.transaction_id
+            JOIN categories c ON c.id=t.category_id JOIN users u ON u.id=a.user_id
+            WHERE a.is_deleted=0 AND t.is_deleted=0 AND a.status='active'
+            ORDER BY a.created_at DESC LIMIT ?""", (limit,)))

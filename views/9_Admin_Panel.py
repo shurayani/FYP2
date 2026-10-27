@@ -11,11 +11,26 @@ from utils import gemini_helper, ui
 from utils.i18n import t
 
 user = ui.require_login(admin_only=True)
+
+
+def _push_user_change(user_id):
+    """Send an account (de)activation to Supabase now, so the cloud and other devices see it."""
+    try:
+        from src import sync_manager
+        if sync_manager.check_connection()[0]:
+            sync_manager.push_pending(user_id, {"pushed": 0, "pulled": 0, "conflicts": []})
+    except Exception:
+        pass                                       # stays pending; sent at that user's next sync
+
 st.title(f"{t('Admin Panel')}")
 
-tab_users, tab_sys, tab_cat, tab_tx, tab_cloud = st.tabs([t("User Management"), t("System Overview"),
-                                               t("Category Management"), t("Transaction Oversight"),
-                                               "Cloud / Sync check"])
+from src import cloud_mode as _cloud_mode
+_tab_names = [t("User Management"), t("System Overview"), t("Category Management"), t("Transaction Oversight")]
+if _cloud_mode.enabled():                          # diagnosis tab: cloud version only
+    _tab_names.append("Cloud / Sync check")
+_tabs = st.tabs(_tab_names)
+tab_users, tab_sys, tab_cat, tab_tx = _tabs[:4]
+tab_cloud = _tabs[4] if len(_tabs) > 4 else None
 
 # ------------------------------------------------------------------ user management
 with tab_users:
@@ -38,10 +53,12 @@ with tab_users:
         if pick["is_active"]:
             if st.button(t("Deactivate account")):
                 auth.set_active(pick["id"], False)
+                _push_user_change(pick["id"])
                 st.rerun()
         else:
             if st.button(t("Reactivate account")):
                 auth.set_active(pick["id"], True)
+                _push_user_change(pick["id"])
                 st.rerun()
     else:
         st.info(t("No users found."))
@@ -146,34 +163,35 @@ with tab_tx:
 
 
 # ------------------------------------------------------------------ cloud / sync check (patch #18)
-with tab_cloud:
-    from src import cloud_mode
-    info = cloud_mode.check()
-    c1, c2 = st.columns(2)
-    c1.metric("Cloud mode (IPECS_CLOUD)", "ON" if info["cloud_mode"] else "OFF")
-    c2.metric("Supabase configured", "Yes" if info["supabase_configured"] else "No")
-    st.caption(f"Database on this server: {info['db_path']}")
-    c3, c4 = st.columns(2)
-    with c3:
-        st.markdown(f"**Accounts in this server's database ({len(info['local_users'])})**")
-        st.write(", ".join(info["local_users"]) or "none")
-    with c4:
-        st.markdown(f"**Accounts in Supabase ({len(info['remote_users'])})**")
-        if info["remote_error"]:
-            st.error("Supabase could not be read: " + info["remote_error"])
-        else:
-            st.write(", ".join(info["remote_users"]) or "none")
-    missing = sorted(set(info["remote_users"]) - set(info["local_users"]))
-    if missing:
-        st.warning("In Supabase but NOT on this server (cannot log in here yet): " + ", ".join(missing))
-    st.markdown("**Last restore from Supabase**")
-    st.json(info["last_restore"] or {"note": "no restore has run since this server started"})
-    if st.button("Restore from Supabase now", type="primary"):
-        with st.spinner("Copying accounts and records from Supabase..."):
-            res = cloud_mode.restore_all()
-        if res["error"]:
-            st.error("Restore failed: " + res["error"])
-        else:
-            st.success(f"Restored {res['restored']} record(s); {res['failed']} could not be copied.")
-        if res["errors"]:
-            st.code("\n".join(res["errors"]))
+if tab_cloud is not None:
+    with tab_cloud:
+        from src import cloud_mode
+        info = cloud_mode.check()
+        c1, c2 = st.columns(2)
+        c1.metric("Cloud mode (IPECS_CLOUD)", "ON" if info["cloud_mode"] else "OFF")
+        c2.metric("Supabase configured", "Yes" if info["supabase_configured"] else "No")
+        st.caption(f"Database on this server: {info['db_path']}")
+        c3, c4 = st.columns(2)
+        with c3:
+            st.markdown(f"**Accounts in this server's database ({len(info['local_users'])})**")
+            st.write(", ".join(info["local_users"]) or "none")
+        with c4:
+            st.markdown(f"**Accounts in Supabase ({len(info['remote_users'])})**")
+            if info["remote_error"]:
+                st.error("Supabase could not be read: " + info["remote_error"])
+            else:
+                st.write(", ".join(info["remote_users"]) or "none")
+        missing = sorted(set(info["remote_users"]) - set(info["local_users"]))
+        if missing:
+            st.warning("In Supabase but NOT on this server (cannot log in here yet): " + ", ".join(missing))
+        st.markdown("**Last restore from Supabase**")
+        st.json(info["last_restore"] or {"note": "no restore has run since this server started"})
+        if st.button("Restore from Supabase now", type="primary"):
+            with st.spinner("Copying accounts and records from Supabase..."):
+                res = cloud_mode.restore_all()
+            if res["error"]:
+                st.error("Restore failed: " + res["error"])
+            else:
+                st.success(f"Restored {res['restored']} record(s); {res['failed']} could not be copied.")
+            if res["errors"]:
+                st.code("\n".join(res["errors"]))

@@ -154,14 +154,69 @@ if st.session_state.get("dark_mode"):
 def dashboard():
     user = ui.require_login()
     if user["role"] == "admin":
-        st.title(t("Dashboard"))
-        st.info(t("You are logged in as the administrator. Use the Admin Panel to manage users and system data."))
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric(t("Total users"), len([u for u in db.list_users() if u["role"] == "user"]))
-        c2.metric(t("Total transactions"), db.count_transactions_all())
-        c3.metric(t("Receipts uploaded"), db.count_receipts_all())
-        c4.metric(t("Active anomaly alerts"), db.count_active_alerts_all())
-        st.page_link("views/9_Admin_Panel.py", label=t("Open Admin Panel"))
+        users = [u for u in db.list_users() if u["role"] == "user"]
+        head_l, head_r = st.columns([3, 2], vertical_alignment="bottom")
+        with head_l:
+            st.title(t("Dashboard"), anchor=False)
+            st.caption(t("System overview for the administrator."))
+        with head_r:
+            with st.container(key="quick_actions", horizontal=True, horizontal_alignment="right"):
+                with st.container(key="qa_scan"):
+                    st.page_link("views/9_Admin_Panel.py", label=t("Open Admin Panel"),
+                                 icon=":material/admin_panel_settings:")
+        with st.container(key="glance"):
+            k = st.columns(4)
+            k[0].metric(t("Total users"), len(users))
+            k[1].metric(t("Total transactions"), db.count_transactions_all())
+            k[2].metric(t("Receipts uploaded"), db.count_receipts_all())
+            k[3].metric(t("Active anomaly alerts"), db.count_active_alerts_all())
+
+        c1, c2 = st.columns([3, 2], gap="large")
+        with c1:
+            st.subheader(t("Activity per month"), anchor=False)
+            tx_m, rc_m = db.activity_by_month()
+            cur = analytics.month_str(date.today())
+            months = [analytics.add_months(cur, -i) for i in range(5, -1, -1)]
+            act = pd.DataFrame({"month": [ui.month_label(m) for m in months] * 2,
+                                "count": [tx_m.get(m, 0) for m in months] + [rc_m.get(m, 0) for m in months],
+                                "type": [t("Transactions")] * 6 + [t("Receipts")] * 6})
+            fig = px.bar(act, x="month", y="count", color="type", barmode="group",
+                         labels={"month": "", "count": "", "type": ""})
+            fig.update_layout(legend=dict(orientation="h", y=1.12), margin=dict(t=10))
+            st.plotly_chart(fig, width="stretch")
+        with c2:
+            st.subheader(t("How receipts were read"), anchor=False)
+            eng = db.ocr_engine_counts()
+            if not eng:
+                st.caption(t("No receipts uploaded yet."))
+            else:
+                names = {"gemini": "Gemini AI", "paddleocr": "PaddleOCR"}
+                pie = pd.DataFrame({"engine": [names.get(k_, k_) for k_ in eng], "n": list(eng.values())})
+                fig = px.pie(pie, names="engine", values="n", hole=0.55)
+                fig.update_layout(legend=dict(orientation="h", y=-0.1), margin=dict(t=10))
+                st.plotly_chart(fig, width="stretch")
+
+        c3, c4 = st.columns(2, gap="large")
+        with c3:
+            st.subheader(t("Newest users"), anchor=False)
+            newest = sorted(users, key=lambda u: u["created_at"] or "", reverse=True)[:5]
+            if newest:
+                st.dataframe(pd.DataFrame({
+                    t("Username"): [u["username"] for u in newest],
+                    t("Registered"): [ui.local_time(u["created_at"], False) for u in newest],
+                    t("Transactions"): [u["tx_count"] for u in newest],
+                    t("Status"): [t("Active") if u["is_active"] else t("Deactivated") for u in newest]}),
+                    width="stretch", hide_index=True)
+            else:
+                st.caption(t("No users found."))
+        with c4:
+            st.subheader(t("Latest anomaly alerts"), anchor=False)
+            alerts = db.recent_alerts_all(5)
+            if not alerts:
+                st.caption(t("No active anomaly alerts."))
+            for a_ in alerts:
+                st.warning(f"{a_['username']} · {a_['merchant']} — {ui.money(a_['amount'])} "
+                           f"({ui.cat_label(a_['category_name'])}), Z = {a_['z_score']:.2f}")
         return
 
     uid = user["id"]

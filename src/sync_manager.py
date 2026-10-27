@@ -61,7 +61,26 @@ def _remote_row(table, record_id):
     return res.data[0] if res.data else None
 
 
+_system_categories_ok = False
+
+
+def ensure_remote_system_categories():
+    """System categories must exist in Supabase for the foreign keys (e.g. 'Shopping', added in patch #21)."""
+    global _system_categories_ok
+    if _system_categories_ok:
+        return
+    have = {r["id"] for r in (get_client().table("categories").select("id").eq("is_system", 1).execute().data or [])}
+    ts = db.now()
+    for name in db.SYSTEM_CATEGORIES:
+        cid = db.category_uuid(name)
+        if cid not in have:
+            get_client().table("categories").upsert(dict(id=cid, category_name=name, is_system=1, user_id=None,
+                                                         updated_at=ts, is_deleted=0)).execute()
+    _system_categories_ok = True
+
+
 def push_pending(user_id, result):
+    ensure_remote_system_categories()
     pending = db.get_sync_entries(user_id, "pending")
     # parents before children, otherwise Supabase rejects rows whose foreign keys are missing
     pending.sort(key=lambda e: (db.SYNC_TABLES.index(e["table_name"]), e["local_updated_at"]))

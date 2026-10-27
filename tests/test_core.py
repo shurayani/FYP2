@@ -43,7 +43,7 @@ def test_auth_and_isolation():
     assert auth.login("alice", "wrong")[0] is None
     auth.deactivate_account(u["id"])
     assert auth.login("alice", "secret1")[0] is None
-    assert len(db.get_categories(u["id"])) == 7
+    assert len(db.get_categories(u["id"])) == len(db.SYSTEM_CATEGORIES)
 
 
 def test_zscore_budget_report_forecast():

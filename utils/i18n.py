@@ -311,3 +311,16 @@ MS.update({
     "Snap a receipt and IPECS sorts your spending into categories, tracks your budgets and warns you about unusual expenses.":
         "Imbas resit dan IPECS menyusun perbelanjaan anda mengikut kategori, menjejak belanjawan dan memberi amaran tentang perbelanjaan luar biasa.",
 })
+
+
+MS.update({
+    "This account has been deactivated. Contact the administrator to reactivate it.":
+        "Akaun ini telah dinyahaktifkan. Hubungi pentadbir untuk mengaktifkannya semula.",
+    "System overview for the administrator.": "Gambaran keseluruhan sistem untuk pentadbir.",
+    "Activity per month": "Aktiviti setiap bulan",
+    "Receipts": "Resit",
+    "How receipts were read": "Cara resit dibaca",
+    "Newest users": "Pengguna terbaru",
+    "Latest anomaly alerts": "Amaran anomali terkini",
+    "Shopping": "Beli-belah",
+})

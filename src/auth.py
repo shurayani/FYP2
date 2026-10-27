@@ -50,7 +50,7 @@ def login(username, password):
     if not user or not verify_password(password or "", user["password"]):
         return None, "Invalid username or password."
     if not user["is_active"]:
-        return None, "This account has been deactivated."
+        return None, "This account has been deactivated. Contact the administrator to reactivate it."
     return {"id": user["id"], "username": user["username"], "role": user["role"], "email": user["email"]}, "OK"
 
 
