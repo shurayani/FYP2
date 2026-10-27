@@ -5,15 +5,11 @@ permanent copy:
   * restore_all()     : after a restart, pull every account and record back from Supabase into SQLite
 On the laptop (no IPECS_CLOUD) nothing here runs and IPECS stays offline-first as described in the report."""
 import os
-import threading
-import time
 
 from src import db_manager as db
 from src import sync_manager
 
 PAGE = 1000                                    # Supabase returns at most 1000 rows per request
-_restore_lock = threading.Lock()
-_nothing_remote_until = 0.0                    # Supabase had no accounts: do not ask again for a while
 _last_image_sync = 0.0
 
 
@@ -87,18 +83,3 @@ def restore_all() -> dict:
     except Exception as e:                                      # Supabase unreachable / wrong key / table missing
         out["error"] = str(e)[:200]
     return out
-
-
-def restore_if_empty():
-    """Cloud: if this server's database has no user accounts (restart, or the disk was wiped while running),
-    pull everything back from Supabase. Only one restore runs at a time. Returns the result or None."""
-    global _nothing_remote_until
-    if not ready() or time.time() < _nothing_remote_until or local_user_count() > 0:
-        return None
-    with _restore_lock:
-        if local_user_count() > 0:                    # another visitor restored it meanwhile
-            return None
-        out = restore_all()
-        if not out["error"] and out["restored"] == 0:
-            _nothing_remote_until = time.time() + 300
-        return out

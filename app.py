@@ -15,6 +15,14 @@ from utils.i18n import t
 auth.init()                                    # create DB, seed 7 categories + admin on first launch
 
 
+@st.cache_resource(show_spinner="Loading saved accounts and transactions...")
+def _restore_from_supabase_once():
+    """Cloud only (IPECS_CLOUD = "1"): the cloud disk was wiped by a restart -> bring everything back from Supabase."""
+    if cloud_mode.ready() and cloud_mode.local_user_count() == 0:
+        return cloud_mode.restore_all()
+    return None
+
+
 @st.cache_resource(show_spinner="Preparing the demo account (first start only, about a minute)...")
 def _seed_demo_once():
     """Optional (IPECS_DEMO = "1"): create demo / demo123 with sample data once per server start."""
@@ -30,11 +38,10 @@ def _seed_demo_once():
 
 
 import os                                      # noqa: E402
-if cloud_mode.ready() and cloud_mode.local_user_count() == 0:       # cloud database empty -> pull it back
-    with st.spinner("Loading saved accounts and transactions..."):
-        _restored = cloud_mode.restore_if_empty()
-    if _restored and _restored.get("error"):
-        st.warning("Saved data could not be loaded from Supabase yet: " + _restored["error"])
+_restored = _restore_from_supabase_once()
+if _restored and _restored.get("error"):
+    _restore_from_supabase_once.clear()        # Supabase was unreachable: try again on the next page load
+    st.warning("Saved data could not be loaded from Supabase yet: " + _restored["error"])
 if os.getenv("IPECS_DEMO") == "1":
     _seed_demo_once()
 

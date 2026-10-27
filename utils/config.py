@@ -11,8 +11,6 @@ except Exception:  # python-dotenv is optional
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
-if os.getenv("IPECS_CLOUD", "").strip() == "1":       # cloud: keep data outside the code folder
-    DATA_DIR = Path(os.getenv("IPECS_DATA_DIR", "") or (Path.home() / ".ipecs_data"))
 RECEIPT_DIR = BASE_DIR / "receipts"
 TRAINING_DIR = BASE_DIR / "training"
 DB_PATH = DATA_DIR / "ipecs.db"
