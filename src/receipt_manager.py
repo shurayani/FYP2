@@ -27,21 +27,7 @@ def save_image(user_id: str, filename: str, data: bytes) -> str:
     name = f"{user_id[:8]}_{stamp}_{safe}{ext}"
     path = RECEIPT_DIR / name
     path.write_bytes(data)
-    rel = str(path.relative_to(BASE_DIR)).replace("\\", "/")
-    _cloud_upload(rel)
-    return rel
-
-
-def _cloud():
-    return os.getenv("IPECS_CLOUD", "").strip() == "1"
-
-
-def _cloud_upload(rel):
-    """Cloud: the disk is temporary, so the image goes to Supabase Storage at once.
-    Laptop: uploaded at the next sync (offline-first)."""
-    if _cloud():
-        from src import image_store
-        image_store.upload(rel)
+    return str(path.relative_to(BASE_DIR)).replace("\\", "/")
 
 
 def get_full_path(rel_path: str) -> Path:
@@ -50,10 +36,7 @@ def get_full_path(rel_path: str) -> Path:
 
 def read_image_bytes(rel_path: str):
     p = get_full_path(rel_path)
-    if p.exists():
-        return p.read_bytes()
-    from src import image_store                    # uploaded on another device -> fetch it from Supabase
-    return image_store.download(rel_path)
+    return p.read_bytes() if p.exists() else None
 
 
 def replace_image(user_id: str, old_rel_path: str, filename: str, data: bytes) -> str:
@@ -69,5 +52,3 @@ def delete_image(rel_path: str):
             os.remove(p)
     except OSError:
         pass
-    from src import image_store                    # remove the Supabase copy too
-    image_store.forget(rel_path, now=_cloud())
