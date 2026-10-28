@@ -12,7 +12,6 @@ if not user:
     st.markdown("<style>[data-testid='stMainBlockContainer'], .block-container { max-width: 560px; }</style>",
                 unsafe_allow_html=True)                       # narrow, centred login column
     st.markdown(ui.brand_header(), unsafe_allow_html=True)
-    pwa.install_box()                     # 'Install IPECS app' (patch #13)
     tab_login, tab_reg, tab_admin = st.tabs([t("User Login"), t("Register"), t("Admin Login")])
     with tab_login:
         with st.form("login_form"):
@@ -57,6 +56,8 @@ if not user:
         if sub:
             ok, msg = auth.register(ru, re_, rp, rc)
             (st.success if ok else st.error)(t(msg))
+    st.write("")
+    pwa.install_box()                     # install button (patch #27)
     st.stop()
 
 # ------------------------------------------------------------------ logged in

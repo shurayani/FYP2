@@ -146,6 +146,18 @@ h2, h3 { letter-spacing: -0.01em; }
 [class*="st-key-dlink"]:hover [data-testid="stMetric"], [class*="st-key-dlink"]:hover .meter { border-color:#0F7B6C; }
 [class*="st-key-dlink"]:hover .slip-wrap { filter:drop-shadow(0 0 1px #0F7B6C) drop-shadow(0 10px 16px rgba(22,37,61,0.1)); }
 [class*="st-key-dlink"]:has(a:focus-visible) { outline:2px solid #0F7B6C; outline-offset:3px; border-radius:12px; }
+
+/* ---------- the whole card is the link (patch #27): Streamlit sizes a page link to its words, so stretch it */
+[class*="st-key-dlink"] [data-testid="stElementContainer"]:has([data-testid="stPageLink"]),
+.st-key-profilebox [data-testid="stElementContainer"]:has([data-testid="stPageLink"]) {
+    position:absolute !important; inset:0 !important; width:100% !important; height:100% !important;
+    max-width:none !important; min-width:0 !important; margin:0 !important; z-index:5; }
+[class*="st-key-dlink"] [data-testid="stPageLink"], [class*="st-key-dlink"] [data-testid="stPageLink"] div,
+.st-key-profilebox [data-testid="stPageLink"], .st-key-profilebox [data-testid="stPageLink"] div {
+    position:static !important; }
+[class*="st-key-dlink"] [data-testid="stPageLink-NavLink"], .st-key-profilebox [data-testid="stPageLink-NavLink"] {
+    position:absolute !important; inset:0 !important; width:100% !important; height:100% !important;
+    margin:0 !important; padding:0 !important; opacity:0; cursor:pointer; }
 </style>
 """
 
@@ -295,25 +307,25 @@ def dashboard():
                 lines.append((t("Other categories"), rest))
         with st.container(key="dlink_slip"):
             st.markdown(ui.receipt_slip(ui.month_label(month), lines, total, top_cat), unsafe_allow_html=True)
-            st.page_link("views/6_Reports.py", label=t("Open reports"))
+            st.page_link("views/6_Reports.py", label=t("Open reports"), width="stretch")
     with glance_col:
         with st.container(key="dlink_budget"):
             st.markdown(ui.budget_meter(pct), unsafe_allow_html=True)
-            st.page_link("views/5_Budget_Goals.py", label=t("Open budget goals"))
+            st.page_link("views/5_Budget_Goals.py", label=t("Open budget goals"), width="stretch")
         with st.container(key="glance"):
             g = st.columns(3)
             with g[0]:
                 with st.container(key="dlink_alerts"):
                     st.metric(t("Unresolved alerts"), len(active_alerts))
-                    st.page_link("views/7_Anomaly_Alerts.py", label=t("View all alerts"))
+                    st.page_link("views/7_Anomaly_Alerts.py", label=t("View all alerts"), width="stretch")
             with g[1]:
                 with st.container(key="dlink_tx"):
                     st.metric(t("Transactions recorded"), len(all_tx))
-                    st.page_link("views/3_Transactions.py", label=t("All transactions"))
+                    st.page_link("views/3_Transactions.py", label=t("All transactions"), width="stretch")
             with g[2]:
                 with st.container(key="dlink_fc"):
                     st.metric(t("Forecast next month"), ui.money(fc_total) if fc_total is not None else "—")
-                    st.page_link("views/8_Forecast.py", label=t("Open forecasts"))
+                    st.page_link("views/8_Forecast.py", label=t("Open forecasts"), width="stretch")
 
     if not all_tx:
         st.info(t("No transactions yet. Upload a receipt or add a transaction manually to get started."))

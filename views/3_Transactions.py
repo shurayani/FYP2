@@ -94,7 +94,11 @@ if _view == "history":
             extra = f" · {r_['item_count']} {t('items')}" if r_.get("item_count") else ""
             return f"{r_['date']} · {r_['merchant']} · {ui.cat_label(r_['category_name'])} · RM {r_['amount']:.2f}{extra}"
 
-        r = by_id[st.selectbox(t("Select a transaction"), list(by_id.keys()), format_func=_tx_label)]
+        ids = list(by_id.keys())
+        keep = st.session_state.get("tx_pick")             # stays on the same transaction after a move or a save
+        r = by_id[st.selectbox(t("Select a transaction"), ids, index=ids.index(keep) if keep in ids else 0,
+                               format_func=_tx_label)]
+        st.session_state["tx_pick"] = r["id"]
         with st.form(f"edit_{r['id']}"):
             m = st.text_input(t("Merchant"), value=r["merchant"])
             c1, c2 = st.columns(2)
@@ -142,6 +146,9 @@ if _view == "history":
                 go_move = st.form_submit_button(t("Move item"))
             if go_move and new_cat:
                 db.move_item(uid, it_id, cats[new_cat])
+                still = db.get_row("transactions", r["id"])
+                st.session_state["tx_pick"] = (r["id"] if still and not still["is_deleted"]
+                                               else db.get_row("transaction_items", it_id)["transaction_id"])
                 analytics.detect_anomalies(uid)
                 st.session_state["tx_flash"] = t("Moved {item} to {cat}.", item=it_by_id[it_id]["item_name"], cat=new_cat)
                 st.rerun()
