@@ -3,10 +3,11 @@ Uses the public REST endpoint through `requests`, HTTPS only. The key comes from
 import base64
 import json
 import re
+import time
 
 import requests
 
-from utils.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_TIMEOUT
+from utils.config import GEMINI_API_KEY, GEMINI_FALLBACK_MODEL, GEMINI_MODEL, GEMINI_TIMEOUT
 
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
@@ -42,14 +43,26 @@ def _call(parts, json_mode=False, timeout=None):
     body = {"contents": [{"parts": parts}]}
     if json_mode:
         body["generationConfig"] = {"responseMimeType": "application/json", "temperature": 0}
-    try:
-        r = requests.post(ENDPOINT.format(model=GEMINI_MODEL), json=body,
-                          headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
-                          timeout=timeout or GEMINI_TIMEOUT)
-    except requests.Timeout:
-        raise NetworkError(f"took longer than {timeout or GEMINI_TIMEOUT:g} s")
-    except requests.ConnectionError:
-        raise NetworkError("could not connect to the Gemini server")
+    # busy (5xx): wait and try the same model once more; still busy or out of quota: the backup model, if set
+    plan = [GEMINI_MODEL, GEMINI_MODEL]
+    if GEMINI_FALLBACK_MODEL and GEMINI_FALLBACK_MODEL != GEMINI_MODEL:
+        plan.append(GEMINI_FALLBACK_MODEL)
+    r = None
+    for attempt, model in enumerate(plan):
+        if attempt == 1:
+            if r.status_code == 429:
+                continue                                  # quota: the same model again will not help
+            time.sleep(1.5)
+        try:
+            r = requests.post(ENDPOINT.format(model=model), json=body,
+                              headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
+                              timeout=timeout or GEMINI_TIMEOUT)
+        except requests.Timeout:
+            raise NetworkError(f"took longer than {timeout or GEMINI_TIMEOUT:g} s")
+        except requests.ConnectionError:
+            raise NetworkError("could not connect to the Gemini server")
+        if r.status_code not in (429, 500, 502, 503, 504):
+            break
     if r.status_code == 200:
         pass
     elif r.status_code == 429:
@@ -58,6 +71,9 @@ def _call(parts, json_mode=False, timeout=None):
         raise QuotaError(f"API key or permission problem (HTTP {r.status_code}) - " + _google_message(r))
     elif r.status_code == 404:
         raise NetworkError(f"model '{GEMINI_MODEL}' was not found (HTTP 404) - check GEMINI_MODEL. " + _google_message(r))
+    elif r.status_code in (500, 502, 503, 504):
+        raise NetworkError(f"the Gemini service is busy (HTTP {r.status_code}), please try again in a minute - "
+                           + _google_message(r))
     else:
         raise NetworkError(f"HTTP {r.status_code} - " + _google_message(r))
     try:
@@ -71,6 +87,7 @@ def extract_receipt_fields(jpeg_bytes: bytes, categories=None) -> dict:
     each with a category chosen from `categories`, back as JSON."""
     cats = ", ".join(f'"{c}"' for c in (categories or []))
     prompt = ("You are reading a Malaysian retail receipt. Return ONLY a JSON object with keys: "
+              '"is_receipt" (true only if the image shows a shop receipt, invoice or bill; false for anything else), '
               '"merchant" (store name, string), "date_text" (the receipt date exactly as printed, string), '
               '"date" (YYYY-MM-DD; Malaysian receipts print DD/MM/YYYY, so 04/10/2026 is 4 October 2026), '
               '"amount" (the FINAL amount actually paid in MYR, after any discount or voucher, number), '

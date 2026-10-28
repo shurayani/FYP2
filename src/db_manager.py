@@ -862,3 +862,53 @@ def update_bill(bill_id, user_id, **fields):
 def delete_bill(bill_id, user_id):
     with get_conn() as c:
         _update(c, "recurring_bills", bill_id, {"is_deleted": 1}, user_id, "delete")
+
+
+# --------------------------------------------------------------------------- MOVE ONE ITEM (patch #26)
+def move_item(user_id, item_id, new_category_id):
+    """Move one receipt item to another category. It joins that category's transaction for the same receipt
+    (created when there is none) and the item's share of the amount moves with it; a transaction left without
+    items is removed. Returns 'same', 'recategorised', 'merged', 'moved' or None (item not found)."""
+    with get_conn() as c:
+        it = _row(c.execute("SELECT * FROM transaction_items WHERE id=? AND user_id=? AND is_deleted=0",
+                            (item_id, user_id)))
+        if not it:
+            return None
+        tx = _row(c.execute("SELECT * FROM transactions WHERE id=? AND is_deleted=0", (it["transaction_id"],)))
+        if not tx or tx["category_id"] == new_category_id:
+            return "same"
+        items = _rows(c.execute("SELECT id, amount FROM transaction_items WHERE transaction_id=? AND is_deleted=0",
+                                (tx["id"],)))
+        sibling = None
+        if tx["receipt_id"]:
+            sibling = _row(c.execute(
+                "SELECT * FROM transactions WHERE receipt_id=? AND category_id=? AND is_deleted=0 AND id<>? LIMIT 1",
+                (tx["receipt_id"], new_category_id, tx["id"])))
+        total = float(tx["amount"])
+        if len(items) <= 1:                                   # the only item: the whole amount goes with it
+            moved = total
+        else:                                                 # its share of what was paid (discounts/fees included)
+            items_sum = sum(float(i["amount"]) for i in items)
+            moved = round(total * float(it["amount"]) / items_sum, 2) if items_sum > 0 else float(it["amount"])
+            moved = max(0.01, min(moved, round(total - 0.01, 2)))
+        if len(items) <= 1 and sibling is None:               # just change the category of this transaction
+            _update(c, "transactions", tx["id"], {"category_id": new_category_id}, user_id)
+            _update(c, "transaction_items", it["id"], {"category_id": new_category_id}, user_id)
+            return "recategorised"
+        if sibling is not None:
+            target_id = sibling["id"]
+            _update(c, "transactions", target_id, {"amount": round(float(sibling["amount"]) + moved, 2)}, user_id)
+        else:
+            target_id, ts = new_id(), now()
+            _insert(c, "transactions", dict(id=target_id, user_id=user_id, receipt_id=tx["receipt_id"],
+                                            merchant=tx["merchant"], date=tx["date"], amount=moved,
+                                            category_id=new_category_id, is_manual=tx["is_manual"], z_score=None,
+                                            is_anomaly=0, created_at=ts, updated_at=ts, is_deleted=0), user_id)
+        _update(c, "transaction_items", it["id"], {"transaction_id": target_id, "category_id": new_category_id}, user_id)
+        if len(items) <= 1:                                   # nothing left in the old transaction
+            for a in _rows(c.execute("SELECT id FROM anomaly_alerts WHERE transaction_id=? AND is_deleted=0", (tx["id"],))):
+                _update(c, "anomaly_alerts", a["id"], {"is_deleted": 1}, user_id, "delete")
+            _update(c, "transactions", tx["id"], {"is_deleted": 1}, user_id, "delete")
+            return "merged"
+        _update(c, "transactions", tx["id"], {"amount": round(total - moved, 2)}, user_id)
+        return "merged" if sibling is not None else "moved"

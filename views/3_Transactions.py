@@ -21,6 +21,8 @@ _view = ui.view_switcher("tx_view", {"history": t("History"), "bills": t("Recurr
                                       "price": t("Price check")}, "history")
 
 if _view == "history":
+    if st.session_state.get("tx_flash"):
+        st.success(st.session_state.pop("tx_flash"))
 
     # ------------------------------------------------------------------ filters
     with st.expander(t("Filters"), expanded=True):
@@ -85,9 +87,14 @@ if _view == "history":
     # ------------------------------------------------------------------ edit / delete
     if rows:
         st.subheader(t("Correct or delete a transaction"))
-        opts = {f"{r['date']} · {r['merchant']} · RM {r['amount']:.2f}": r for r in rows}
-        choice = st.selectbox(t("Select a transaction"), list(opts.keys()))
-        r = opts[choice]
+        by_id = {r_["id"]: r_ for r_ in rows}            # keyed by id: same date + shop + amount no longer collide
+
+        def _tx_label(i):
+            r_ = by_id[i]
+            extra = f" · {r_['item_count']} {t('items')}" if r_.get("item_count") else ""
+            return f"{r_['date']} · {r_['merchant']} · {ui.cat_label(r_['category_name'])} · RM {r_['amount']:.2f}{extra}"
+
+        r = by_id[st.selectbox(t("Select a transaction"), list(by_id.keys()), format_func=_tx_label)]
         with st.form(f"edit_{r['id']}"):
             m = st.text_input(t("Merchant"), value=r["merchant"])
             c1, c2 = st.columns(2)
@@ -124,6 +131,20 @@ if _view == "history":
                          width="stretch", hide_index=True)
             if abs(sum(i["amount"] for i in its) - float(r["amount"])) > 0.005:
                 st.caption(t("Item prices are shown before discounts and fees. The transaction amount is what you paid."))
+            st.markdown(f"**{t('Move an item to another category')}**")
+            it_by_id = {i["id"]: i for i in its}
+            others = [l_ for l_ in labels if cats[l_] != r["category_id"]]
+            with st.form(f"move_item_{r['id']}"):
+                mc1, mc2 = st.columns(2)
+                it_id = mc1.selectbox(t("Item"), list(it_by_id.keys()),
+                                      format_func=lambda i: f"{it_by_id[i]['item_name']} · RM {it_by_id[i]['amount']:.2f}")
+                new_cat = mc2.selectbox(t("Move to"), others)
+                go_move = st.form_submit_button(t("Move item"))
+            if go_move and new_cat:
+                db.move_item(uid, it_id, cats[new_cat])
+                analytics.detect_anomalies(uid)
+                st.session_state["tx_flash"] = t("Moved {item} to {cat}.", item=it_by_id[it_id]["item_name"], cat=new_cat)
+                st.rerun()
 
 if _view == "bills":
     tx_tabs.render_recurring(uid)

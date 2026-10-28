@@ -19,6 +19,10 @@ from utils.gemini_helper import NetworkError, ParseError, QuotaError
 _paddle = None
 
 
+class NotAReceipt(Exception):
+    """The photo is not a receipt, or nothing could be read from it (the message is shown to the user)."""
+
+
 # ---------------------------------------------------------------- connectivity
 def is_online(timeout: float = 2.0) -> bool:
     for host, port in (("1.1.1.1", 53), ("8.8.8.8", 53), ("generativelanguage.googleapis.com", 443)):
@@ -181,6 +185,8 @@ def extract_receipt(image_bytes: bytes, prefer_offline: bool = False, categories
     if not prefer_offline and gemini_helper.is_configured() and is_online():
         try:
             data = gemini_helper.extract_receipt_fields(to_jpeg_bytes(img), categories)
+            if str(data.get("is_receipt")).strip().lower() == "false":
+                raise NotAReceipt("This photo does not look like a receipt. Please upload or take a photo of a receipt or bill.")
             fields = preprocessor.validate_structured(data)
             if data.get("amount") is None and data.get("merchant") is None:
                 raise ParseError("empty Gemini response")
@@ -195,6 +201,8 @@ def extract_receipt(image_bytes: bytes, prefer_offline: bool = False, categories
     elif not prefer_offline:
         note = "No internet connection was detected. Using PaddleOCR."
 
+    if not paddle_available() and "empty Gemini response" in note:
+        raise NotAReceipt("Nothing could be read from this photo. Please take a clear, well-lit photo of the whole receipt.")
     if not paddle_available():
         reason = note.replace(" Switched to PaddleOCR.", "").replace(" Using PaddleOCR.", "")
         raise RuntimeError(f"{reason} PaddleOCR (offline OCR) is not installed on this computer/server, so the "

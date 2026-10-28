@@ -26,6 +26,7 @@ for _d in (DATA_DIR, RECEIPT_DIR):
 # --- External services (all optional: the app works fully offline without them)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "").strip()   # used when the main model is busy
 GEMINI_TIMEOUT = float(os.getenv("GEMINI_TIMEOUT", "20"))   # seconds before falling back (NFR13)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()

@@ -141,6 +141,7 @@ if _view == "ocr":
     source = st.radio(t("Image source"), [t("Upload file"), t("Take a photo")], horizontal=True)
     img_file = (st.file_uploader(t("Receipt image (JPEG or PNG, up to 10 MB)"), type=["jpg", "jpeg", "png"])
                 if source == t("Upload file") else st.camera_input(t("Take a photo of the receipt")))
+    st.caption(t("Use a photo of a receipt or bill only. Other photos cannot be read."))
 
     if img_file is not None:
         data = img_file.getvalue()
@@ -166,6 +167,9 @@ if _view == "ocr":
                             res["confidence"] = 1.0
                         st.session_state["ocr_result"] = {**res, "file_name": fname, "data": data,
                                                           "uid": uuid.uuid4().hex[:8]}
+                    except ocr_module.NotAReceipt as e:
+                        st.session_state.pop("ocr_result", None)
+                        st.warning(t(str(e)))
                     except Exception as e:
                         st.session_state.pop("ocr_result", None)
                         st.error(f"{t('Extraction failed')}: {e}")

@@ -169,8 +169,14 @@ if _view == "tx":
         st.download_button(t("Export CSV"), view.to_csv(index=False).encode("utf-8"),
                            file_name="ipecs_admin_transactions.csv", mime="text/csv")
         st.subheader(t("Flag a suspicious transaction"))
-        opts = {f"{r['username']} · {r['date']} · {r['merchant']} · RM {r['amount']:.2f}": r for r in rows[:200]}
-        r = opts[st.selectbox(t("Select a transaction"), list(opts.keys()))]
+        flag_by_id = {r_["id"]: r_ for r_ in rows[:200]}
+
+        def _flag_label(i):
+            r_ = flag_by_id[i]
+            return (f"{r_['username']} · {r_['date']} · {r_['merchant']} · {ui.cat_label(r_['category_name'])} · "
+                    f"RM {r_['amount']:.2f}")
+
+        r = flag_by_id[st.selectbox(t("Select a transaction"), list(flag_by_id.keys()), format_func=_flag_label)]
         if st.button(t("Flag for review")):
             if db.get_alert_for_transaction(r["id"]):
                 st.info(t("This transaction already has an alert."))

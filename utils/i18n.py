@@ -395,3 +395,17 @@ MS.update({
 
 
 MS.update({"Recurring bills": "Bil berulang", "Price check": "Semak harga"})
+
+
+MS.update({
+    "items": "barang", "Move an item to another category": "Pindahkan satu barang ke kategori lain",
+    "Move to": "Pindah ke", "Move item": "Pindahkan barang", "Moved {item} to {cat}.": "{item} dipindahkan ke {cat}.",
+    "Use a photo of a receipt or bill only. Other photos cannot be read.":
+        "Guna gambar resit atau bil sahaja. Gambar lain tidak dapat dibaca.",
+    "This photo does not look like a receipt. Please upload or take a photo of a receipt or bill.":
+        "Gambar ini tidak kelihatan seperti resit. Sila muat naik atau ambil gambar resit atau bil.",
+    "Nothing could be read from this photo. Please take a clear, well-lit photo of the whole receipt.":
+        "Tiada apa-apa dapat dibaca daripada gambar ini. Sila ambil gambar resit yang jelas, terang dan lengkap.",
+    "Open reports": "Buka laporan", "Open budget goals": "Buka matlamat belanjawan",
+    "No transactions yet.": "Belum ada transaksi.",
+})

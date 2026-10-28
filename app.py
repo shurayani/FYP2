@@ -134,6 +134,18 @@ h2, h3 { letter-spacing: -0.01em; }
     letter-spacing:-0.03em; color:#16253D; }
 .brand-tag { color:#5B6B7F; font-size:0.9rem; margin-top:4px; }
 .brand-pitch { font-size:1.02rem; line-height:1.55; color:#2A3A52; max-width:34rem; margin:0.4rem 0 1rem; }
+
+/* ---------- dashboard sections in their own boxes, clickable summary cards (patch #26) */
+[class*="st-key-box_"] { background:#FFFFFF; }
+[class*="st-key-dlink"] { position:relative; }
+[class*="st-key-dlink"] [data-testid="stElementContainer"]:has([data-testid="stPageLink"]) {
+    position:absolute; inset:0; z-index:5; margin:0; }
+[class*="st-key-dlink"] [data-testid="stPageLink"], [class*="st-key-dlink"] [data-testid="stPageLink-NavLink"] {
+    width:100%; height:100%; opacity:0; }
+[class*="st-key-dlink"] [data-testid="stMetric"], [class*="st-key-dlink"] .meter { transition:border-color .15s ease; }
+[class*="st-key-dlink"]:hover [data-testid="stMetric"], [class*="st-key-dlink"]:hover .meter { border-color:#0F7B6C; }
+[class*="st-key-dlink"]:hover .slip-wrap { filter:drop-shadow(0 0 1px #0F7B6C) drop-shadow(0 10px 16px rgba(22,37,61,0.1)); }
+[class*="st-key-dlink"]:has(a:focus-visible) { outline:2px solid #0F7B6C; outline-offset:3px; border-radius:12px; }
 </style>
 """
 
@@ -171,70 +183,77 @@ def dashboard():
             k[2].metric(t("Receipts uploaded"), db.count_receipts_all())
             k[3].metric(t("Active anomaly alerts"), db.count_active_alerts_all())
 
-        acc = db.classifier_accuracy()
-        st.subheader(t("Category suggestions in real use"), anchor=False)
-        if not acc["total"]:
-            st.caption(t("No data yet. This fills in as users save transactions with the category IPECS suggested."))
-        else:
-            a1, a2 = st.columns([1, 2], gap="large")
-            a1.metric(t("Suggestions kept by users"), f"{acc['kept'] / acc['total'] * 100:.0f}%")
-            a1.caption(t("{k} of {n} suggested categories were kept.", k=acc["kept"], n=acc["total"]))
-            with a2:
-                if acc["corrections"]:
-                    st.caption(t("Most common corrections"))
-                    st.dataframe(pd.DataFrame({
-                        t("Suggested"): [ui.cat_label(c_["suggested"]) for c_ in acc["corrections"]],
-                        t("Changed to"): [ui.cat_label(c_["chosen"]) for c_ in acc["corrections"]],
-                        t("Times"): [c_["times"] for c_ in acc["corrections"]]}), width="stretch", hide_index=True)
-                else:
-                    st.caption(t("No suggestion has been corrected so far."))
+        with st.container(border=True, key="box_accuracy"):
+            acc = db.classifier_accuracy()
+            st.subheader(t("Category suggestions in real use"), anchor=False)
+            if not acc["total"]:
+                st.caption(t("No data yet. This fills in as users save transactions with the category IPECS suggested."))
+            else:
+                a1, a2 = st.columns([1, 2], gap="large")
+                a1.metric(t("Suggestions kept by users"), f"{acc['kept'] / acc['total'] * 100:.0f}%")
+                a1.caption(t("{k} of {n} suggested categories were kept.", k=acc["kept"], n=acc["total"]))
+                with a2:
+                    if acc["corrections"]:
+                        st.caption(t("Most common corrections"))
+                        st.dataframe(pd.DataFrame({
+                            t("Suggested"): [ui.cat_label(c_["suggested"]) for c_ in acc["corrections"]],
+                            t("Changed to"): [ui.cat_label(c_["chosen"]) for c_ in acc["corrections"]],
+                            t("Times"): [c_["times"] for c_ in acc["corrections"]]}), width="stretch", hide_index=True)
+                    else:
+                        st.caption(t("No suggestion has been corrected so far."))
 
         c1, c2 = st.columns([3, 2], gap="large")
         with c1:
-            st.subheader(t("Activity per month"), anchor=False)
-            tx_m, rc_m = db.activity_by_month()
-            cur = analytics.month_str(date.today())
-            months = [analytics.add_months(cur, -i) for i in range(5, -1, -1)]
-            act = pd.DataFrame({"month": [ui.month_label(m) for m in months] * 2,
-                                "count": [tx_m.get(m, 0) for m in months] + [rc_m.get(m, 0) for m in months],
-                                "type": [t("Transactions")] * 6 + [t("Receipts")] * 6})
-            fig = px.bar(act, x="month", y="count", color="type", barmode="group",
-                         labels={"month": "", "count": "", "type": ""})
-            fig.update_layout(legend=dict(orientation="h", y=1.12), margin=dict(t=10))
-            st.plotly_chart(fig, width="stretch")
-        with c2:
-            st.subheader(t("How receipts were read"), anchor=False)
-            eng = db.ocr_engine_counts()
-            if not eng:
-                st.caption(t("No receipts uploaded yet."))
-            else:
-                names = {"gemini": "Gemini AI", "paddleocr": "PaddleOCR"}
-                pie = pd.DataFrame({"engine": [names.get(k_, k_) for k_ in eng], "n": list(eng.values())})
-                fig = px.pie(pie, names="engine", values="n", hole=0.55)
-                fig.update_layout(legend=dict(orientation="h", y=-0.1), margin=dict(t=10))
+            with st.container(border=True, key="box_activity"):
+                st.subheader(t("Activity per month"), anchor=False)
+                tx_m, rc_m = db.activity_by_month()
+                cur = analytics.month_str(date.today())
+                months = [analytics.add_months(cur, -i) for i in range(5, -1, -1)]
+                act = pd.DataFrame({"month": [ui.month_label(m) for m in months] * 2,
+                                    "count": [tx_m.get(m, 0) for m in months] + [rc_m.get(m, 0) for m in months],
+                                    "type": [t("Transactions")] * 6 + [t("Receipts")] * 6})
+                fig = px.bar(act, x="month", y="count", color="type", barmode="group",
+                             labels={"month": "", "count": "", "type": ""})
+                fig.update_layout(legend=dict(orientation="h", y=1.12), margin=dict(t=10))
                 st.plotly_chart(fig, width="stretch")
+
+        with c2:
+            with st.container(border=True, key="box_engines"):
+                st.subheader(t("How receipts were read"), anchor=False)
+                eng = db.ocr_engine_counts()
+                if not eng:
+                    st.caption(t("No receipts uploaded yet."))
+                else:
+                    names = {"gemini": "Gemini AI", "paddleocr": "PaddleOCR"}
+                    pie = pd.DataFrame({"engine": [names.get(k_, k_) for k_ in eng], "n": list(eng.values())})
+                    fig = px.pie(pie, names="engine", values="n", hole=0.55, color_discrete_sequence=ui.CHART_COLORS)
+                    fig.update_layout(legend=dict(orientation="h", y=-0.1), margin=dict(t=10))
+                    st.plotly_chart(fig, width="stretch")
 
         c3, c4 = st.columns(2, gap="large")
         with c3:
-            st.subheader(t("Newest users"), anchor=False)
-            newest = sorted(users, key=lambda u: u["created_at"] or "", reverse=True)[:5]
-            if newest:
-                st.dataframe(pd.DataFrame({
-                    t("Username"): [u["username"] for u in newest],
-                    t("Registered"): [ui.local_time(u["created_at"], False) for u in newest],
-                    t("Transactions"): [u["tx_count"] for u in newest],
-                    t("Status"): [t("Active") if u["is_active"] else t("Deactivated") for u in newest]}),
-                    width="stretch", hide_index=True)
-            else:
-                st.caption(t("No users found."))
+            with st.container(border=True, key="box_users"):
+                st.subheader(t("Newest users"), anchor=False)
+                newest = sorted(users, key=lambda u: u["created_at"] or "", reverse=True)[:5]
+                if newest:
+                    st.dataframe(pd.DataFrame({
+                        t("Username"): [u["username"] for u in newest],
+                        t("Registered"): [ui.local_time(u["created_at"], False) for u in newest],
+                        t("Transactions"): [u["tx_count"] for u in newest],
+                        t("Status"): [t("Active") if u["is_active"] else t("Deactivated") for u in newest]}),
+                        width="stretch", hide_index=True)
+                else:
+                    st.caption(t("No users found."))
+
         with c4:
-            st.subheader(t("Latest anomaly alerts"), anchor=False)
-            alerts = db.recent_alerts_all(5)
-            if not alerts:
-                st.caption(t("No active anomaly alerts."))
-            for a_ in alerts:
-                st.warning(f"{a_['username']} · {a_['merchant']} — {ui.money(a_['amount'])} "
-                           f"({ui.cat_label(a_['category_name'])}), Z = {a_['z_score']:.2f}")
+            with st.container(border=True, key="box_admin_alerts"):
+                st.subheader(t("Latest anomaly alerts"), anchor=False)
+                alerts = db.recent_alerts_all(5)
+                if not alerts:
+                    st.caption(t("No active anomaly alerts."))
+                for a_ in alerts:
+                    st.warning(f"{a_['username']} · {a_['merchant']} — {ui.money(a_['amount'])} "
+                               f"({ui.cat_label(a_['category_name'])}), Z = {a_['z_score']:.2f}")
         return
 
     uid = user["id"]
@@ -274,14 +293,27 @@ def dashboard():
             rest = float(by_total["total"].iloc[5:].sum())
             if rest > 0:
                 lines.append((t("Other categories"), rest))
-        st.markdown(ui.receipt_slip(ui.month_label(month), lines, total, top_cat), unsafe_allow_html=True)
+        with st.container(key="dlink_slip"):
+            st.markdown(ui.receipt_slip(ui.month_label(month), lines, total, top_cat), unsafe_allow_html=True)
+            st.page_link("views/6_Reports.py", label=t("Open reports"))
     with glance_col:
-        st.markdown(ui.budget_meter(pct), unsafe_allow_html=True)
+        with st.container(key="dlink_budget"):
+            st.markdown(ui.budget_meter(pct), unsafe_allow_html=True)
+            st.page_link("views/5_Budget_Goals.py", label=t("Open budget goals"))
         with st.container(key="glance"):
             g = st.columns(3)
-            g[0].metric(t("Unresolved alerts"), len(active_alerts))
-            g[1].metric(t("Transactions recorded"), len(all_tx))
-            g[2].metric(t("Forecast next month"), ui.money(fc_total) if fc_total is not None else "—")
+            with g[0]:
+                with st.container(key="dlink_alerts"):
+                    st.metric(t("Unresolved alerts"), len(active_alerts))
+                    st.page_link("views/7_Anomaly_Alerts.py", label=t("View all alerts"))
+            with g[1]:
+                with st.container(key="dlink_tx"):
+                    st.metric(t("Transactions recorded"), len(all_tx))
+                    st.page_link("views/3_Transactions.py", label=t("All transactions"))
+            with g[2]:
+                with st.container(key="dlink_fc"):
+                    st.metric(t("Forecast next month"), ui.money(fc_total) if fc_total is not None else "—")
+                    st.page_link("views/8_Forecast.py", label=t("Open forecasts"))
 
     if not all_tx:
         st.info(t("No transactions yet. Upload a receipt or add a transaction manually to get started."))
@@ -289,56 +321,74 @@ def dashboard():
 
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader(f"{t('Monthly spending trend')}", anchor=False)
-        trend = analytics.monthly_totals(uid, 6)
-        fig = px.line(trend, x="month", y="total", markers=True, labels={"month": t("Month"), "total": "RM"})
-        st.plotly_chart(fig, width="stretch")
+        with st.container(border=True, key="box_trend"):
+            st.subheader(t("Monthly spending trend"), anchor=False)
+            trend = analytics.monthly_totals(uid, 6)
+            fig = px.line(trend, x="month", y="total", markers=True, labels={"month": t("Month"), "total": "RM"},
+                          color_discrete_sequence=ui.CHART_COLORS)
+            fig.update_layout(margin=dict(t=10, b=10))
+            st.plotly_chart(fig, width="stretch")
     with c2:
-        st.subheader(f"{t('Category breakdown')} ({month})", anchor=False)
-        if summary.empty:
-            st.caption(t("No spending recorded this month."))
-        else:
-            s2 = summary.copy()
-            s2["category_name"] = s2["category_name"].map(ui.cat_label)
-            st.plotly_chart(px.pie(s2, names="category_name", values="total", hole=0.35), width="stretch")
+        with st.container(border=True, key="box_breakdown"):
+            st.subheader(f"{t('Category breakdown')} ({ui.month_label(month)})", anchor=False)
+            if summary.empty:
+                st.caption(t("No spending recorded this month."))
+            else:
+                s2 = summary.copy()
+                s2["category_name"] = s2["category_name"].map(ui.cat_label)
+                fig = px.pie(s2, names="category_name", values="total", hole=0.35,
+                             color_discrete_sequence=ui.CHART_COLORS)
+                fig.update_layout(margin=dict(t=10, b=10))
+                st.plotly_chart(fig, width="stretch")
 
-    st.subheader(f"{t('Budget progress')}", anchor=False)
-    if bva.empty:
-        st.caption(t("No budget goals set for this month."))
-        st.page_link("views/5_Budget_Goals.py", label=t("Set a budget goal"))
-    else:
-        b = bva.copy()
-        b["category_name"] = b["category_name"].map(ui.cat_label)
-        long = pd.melt(b, id_vars="category_name", value_vars=["budget", "actual"], var_name="type", value_name="RM")
-        st.plotly_chart(px.bar(long, x="category_name", y="RM", color="type", barmode="group",
-                               labels={"category_name": t("Category")}), width="stretch")
+    with st.container(border=True, key="box_budget"):
+        st.subheader(t("Budget progress"), anchor=False)
+        if bva.empty:
+            st.caption(t("No budget goals set for this month."))
+            st.page_link("views/5_Budget_Goals.py", label=t("Set a budget goal"))
+        else:
+            b = bva.copy()
+            b["category_name"] = b["category_name"].map(ui.cat_label)
+            long = pd.melt(b, id_vars="category_name", value_vars=["budget", "actual"], var_name="type", value_name="RM")
+            long["type"] = long["type"].map({"budget": t("Budget"), "actual": t("Spent")})
+            fig = px.bar(long, x="category_name", y="RM", color="type", barmode="group",
+                         labels={"category_name": t("Category"), "type": ""}, color_discrete_sequence=ui.CHART_COLORS)
+            fig.update_layout(margin=dict(t=10, b=10))
+            st.plotly_chart(fig, width="stretch")
 
     a1, a2 = st.columns(2)
     with a1:
-        st.subheader(f"{t('Anomaly alerts')}", anchor=False)
-        if not active_alerts:
-            st.caption(t("No active anomaly alerts."))
-        for a in active_alerts[:3]:
-            st.warning(f"{a['merchant']} — {ui.money(a['amount'])} ({ui.cat_label(a['category_name'])}), Z = {a['z_score']:.2f}")
-        st.page_link("views/7_Anomaly_Alerts.py", label=t("View all alerts"))
+        with st.container(border=True, key="box_alerts"):
+            st.subheader(t("Anomaly alerts"), anchor=False)
+            if not active_alerts:
+                st.caption(t("No active anomaly alerts."))
+            for a in active_alerts[:3]:
+                st.warning(f"{a['merchant']} — {ui.money(a['amount'])} ({ui.cat_label(a['category_name'])}), Z = {a['z_score']:.2f}")
+            st.page_link("views/7_Anomaly_Alerts.py", label=t("View all alerts"))
     with a2:
-        st.subheader(f"{t('Forecast preview')} ({next_month})", anchor=False)
-        if not forecasts:
-            st.caption(t("No forecast yet. Open the Forecast page and press Recalculate."))
-        for f in forecasts[:4]:
-            st.write(f"{ui.cat_label(f['category_name'])}: **{ui.money(f['forecast_amount'])}**")
-        st.page_link("views/8_Forecast.py", label=t("Open forecasts"))
+        with st.container(border=True, key="box_forecast"):
+            st.subheader(f"{t('Forecast preview')} ({ui.month_label(next_month)})", anchor=False)
+            if not forecasts:
+                st.caption(t("No forecast yet. Open the Forecast page and press Recalculate."))
+            for f in forecasts[:4]:
+                st.write(f"{ui.cat_label(f['category_name'])}: **{ui.money(f['forecast_amount'])}**")
+            st.page_link("views/8_Forecast.py", label=t("Open forecasts"))
 
-    st.subheader(f"{t('Recent transactions')}", anchor=False)
-    if all_tx:
-        recent = pd.DataFrame(all_tx[:8])[["date", "merchant", "category_name", "amount"]]
-        recent["category_name"] = recent["category_name"].map(ui.cat_label)
-        recent.columns = [t("Date"), t("Merchant"), t("Category"), "RM"]
-        st.dataframe(recent, width="stretch", hide_index=True)
+    with st.container(border=True, key="box_recent"):
+        st.subheader(t("Recent transactions"), anchor=False)
+        if all_tx:
+            recent = pd.DataFrame(all_tx[:8])[["date", "merchant", "category_name", "amount"]]
+            recent["category_name"] = recent["category_name"].map(ui.cat_label)
+            recent.columns = [t("Date"), t("Merchant"), t("Category"), "RM"]
+            st.dataframe(recent, width="stretch", hide_index=True)
+        else:
+            st.caption(t("No transactions yet."))
+        st.page_link("views/3_Transactions.py", label=t("All transactions"))
 
-    st.subheader(f"{t('Financial insights')}", anchor=False)
-    for tip in analytics.insight_tips(uid):
-        st.write("• " + tip)
+    with st.container(border=True, key="box_insights"):
+        st.subheader(t("Financial insights"), anchor=False)
+        for tip in analytics.insight_tips(uid):
+            st.write("• " + tip)
 
 
 # ----------------------------------------------------------------------------- navigation
