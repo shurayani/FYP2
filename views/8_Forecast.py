@@ -65,7 +65,7 @@ elif not ui.online_status():
 else:
     if st.button(t("Generate AI insights")):
         with st.spinner(t("Asking Gemini...")):
-            language = "Bahasa Malaysia" if st.session_state.get("lang") == "ms" else "English"
+            language = "Bahasa Melayu" if st.session_state.get("lang") == "ms" else "English"
             st.session_state["ai_insights"] = fc.get_ai_insights(uid, month, language) or t("AI insights are unavailable right now.")
     if st.session_state.get("ai_insights"):
         st.info(st.session_state["ai_insights"])

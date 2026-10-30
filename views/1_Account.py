@@ -95,7 +95,7 @@ if _view == "password":
 
 if _view == "settings":
     st.subheader(t("Application preferences"))
-    st.write(t("The interface language can be changed from the sidebar (English / Bahasa Malaysia)."))
+    st.write(t("The interface language can be changed from the sidebar (English / Bahasa Melayu)."))
     if user["role"] != "admin":
         st.subheader(t("Data management"))
         n_tx = len(db.get_transactions(user["id"]))
