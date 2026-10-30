@@ -38,7 +38,7 @@ if cloud_mode.ready() and cloud_mode.local_user_count() == 0:       # cloud data
 if os.getenv("IPECS_DEMO") == "1":
     _seed_demo_once()
 
-# language comes from the BM toggle (ON = Bahasa Malaysia, OFF = English)
+# language comes from the BM toggle (ON = Bahasa Melayu, OFF = English)
 st.session_state["lang"] = "ms" if st.session_state.get("lang_bm", False) else "en"
 
 # ----------------------------------------------------------------------------- styling
@@ -460,7 +460,7 @@ with st.sidebar:
             sc = db.sync_counts(user["id"])
             st.caption(t("Sync: {p} pending · {c} conflict(s)", p=sc["pending"], c=sc["conflict"]))
     st.toggle("Dark mode", key="dark_mode")
-    st.toggle("Bahasa Malaysia", key="lang_bm")
+    st.toggle("Bahasa Melayu", key="lang_bm")
     if user and st.button(t("Log out"), width="stretch"):
         keep = {k: st.session_state.get(k) for k in ("lang_bm", "dark_mode")}
         st.session_state.clear()

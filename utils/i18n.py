@@ -1,6 +1,6 @@
-"""English / Bahasa Malaysia interface toggle (scope item vi).
+"""English / Bahasa Melayu interface toggle (scope item vi).
 
-t("English text") returns the Bahasa Malaysia translation when the sidebar language is 'ms';
+t("English text") returns the Bahasa Melayu translation when the sidebar language is 'ms';
 any string that is not in the dictionary falls back to the English text."""
 import streamlit as st
 
@@ -44,8 +44,8 @@ MS = {
     "New password": "Kata laluan baharu", "Confirm new password": "Sahkan kata laluan baharu",
     "The administrator password is configured through the ADMIN_PASSWORD setting, but you can also change it here.":
         "Kata laluan pentadbir ditetapkan melalui ADMIN_PASSWORD, tetapi anda juga boleh menukarnya di sini.",
-    "Application preferences": "Keutamaan aplikasi", "The interface language can be changed from the sidebar (English / Bahasa Malaysia).":
-        "Bahasa antara muka boleh ditukar dari bar sisi (English / Bahasa Malaysia).",
+    "Application preferences": "Keutamaan aplikasi", "The interface language can be changed from the sidebar (English / Bahasa Melayu).":
+        "Bahasa antara muka boleh ditukar dari bar sisi (English / Bahasa Melayu).",
     "Data management": "Pengurusan data", "You have {tx} transaction(s) and {rc} receipt(s) stored.":
         "Anda mempunyai {tx} transaksi dan {rc} resit disimpan.",
     "Export your transactions from the Transactions page.": "Eksport transaksi anda dari halaman Transaksi.",
